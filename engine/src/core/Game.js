@@ -175,7 +175,9 @@ export class Game {
     this.gameState = 'playing';
     this.isPaused = false;
     this.turnCount = 0;
-    this.currentPlayerIndex = 0;
+    // 开局首先轮到核心（主力）出牌，然后顺时针轮转
+    const coreIdx = this.players.findIndex(p => p.identity?.key === 'core');
+    this.currentPlayerIndex = coreIdx >= 0 ? coreIdx : 0;
 
     this.renderer.updateButtons('playing');
     this.renderer.updateUI(this);
@@ -868,7 +870,7 @@ export class Game {
           const idx = target.handCards.findIndex(c => c.key === 'shan');
           if (idx !== -1) {
             const shan = target.handCards.splice(idx, 1)[0];
-            this.deck.discard(shan);
+            this.discardWithFlash(shan, target);
           }
         }
         this.renderer.addLog(`🛡️ ${target.character.name} 使用 ${shanCount} 张【盖】盖避成功`, 'normal');
@@ -904,7 +906,7 @@ export class Game {
       }
 
       player.hasUsedSha = true;
-      if (!card.isVirtual) this.deck.discard(card);
+      if (!card.isVirtual) this.discardWithFlash(card, player);
       this.renderer.updateUI(this);
       this.continueAfterCard(player, 400);
     }, 2000);
@@ -1002,6 +1004,14 @@ export class Game {
     });
   }
 
+  // 弃牌包装：进弃牌堆 + 飞牌动效（让玩家 2s 看清明牌） + 触发 card_discarded
+  discardWithFlash(card, source) {
+    if (!card) return;
+    this.deck.discard(card);
+    this.renderer?.flashDiscard?.(source, card);
+    this.fireCardDiscarded(card, source);
+  }
+
   // 触发 targeted_by_scroll — 让 Kawhi 沉默 / 类似的"取消锦囊"技能介入
   // 返回 true 表示锦囊被取消，调用方应跳过效果
   fireTargetedByScrollAndCancel(player, target, card) {
@@ -1058,7 +1068,7 @@ export class Game {
     if (target.handCards.length > 0) {
       const idx = Math.floor(Math.random() * target.handCards.length);
       const card = target.handCards.splice(idx, 1)[0];
-      this.deck.discard(card);
+      this.discardWithFlash(card, target);
       this.renderer.updatePlayer(target);
       this.renderer.addLog(`弃置【${card.name}】`, 'play');
     } else {
@@ -1153,13 +1163,13 @@ export class Game {
       source.handCards.push(card);
       this.renderer.addLog(`✋ ${source.character.name} 从 ${target.character.name} 处摘走【${card.name}】`, 'play');
     } else if (action === 'guoheshuang') {
-      this.deck.discard(card);
+      this.discardWithFlash(card, target);
       this.renderer.addLog(`🗑️ ${source.character.name} 弃置 ${target.character.name} 的【${card.name}】`, 'play');
     } else if (action === 'skill_discard') {
-      this.deck.discard(card);
+      this.discardWithFlash(card, target);
       this.renderer.addLog(`✨ ${source.character.name} 发动【${skillName}】，弃置 ${target.character.name} 的【${card.name}】`, 'skill');
     } else if (action === 'self_discard') {
-      this.deck.discard(card);
+      this.discardWithFlash(card, source);
       this.renderer.addLog(`🗑️ ${source.character.name} 弃置【${card.name}】`, 'normal');
       this.renderer.updatePlayer(source);
       this.renderer.updateUI(this);
@@ -1560,7 +1570,7 @@ export class Game {
       for (let i = 0; i < discardCount; i++) {
         const card = player.handCards.pop();
         if (card) {
-          this.deck.discard(card);
+          this.discardWithFlash(card, player);
           discarded.push(`【${card.name}】`);
         }
       }

@@ -320,10 +320,12 @@ export class Renderer {
     if (currentPlayer && players) {
       this.updateDistanceLabels(currentPlayer, players);
     }
-    
+
     if (deck && typeof deck.getRemaining === 'function') {
       this.elements.deckRemaining.textContent = deck.getRemaining();
-      this.elements.discardPile.textContent = deck.getDiscardCount();
+      const discardCount = deck.getDiscardCount();
+      this.elements.discardPile.textContent = discardCount;
+      this.updateCenterDiscardPile(discardCount);
     }
     
     const statusEl = this.elements.gameStatus;
@@ -579,6 +581,60 @@ export class Renderer {
     if (color) burst.style.background = color;
     card.appendChild(burst);
     setTimeout(() => burst.remove(), 1900);
+  }
+
+  // 弃牌动效：从源玩家位置弹出一张明牌（2s 可看清楚），最后飞向屏幕正中
+  flashDiscard(source, card) {
+    if (!card) return;
+    const srcEl = source ? document.getElementById(`player-${source.index}`) : null;
+    const srcRect = srcEl?.getBoundingClientRect();
+    const startX = srcRect ? srcRect.left + srcRect.width / 2 : window.innerWidth / 2;
+    const startY = srcRect ? srcRect.top + srcRect.height / 2 : window.innerHeight / 2;
+    // 屏幕正中（叠加少量随机偏移避免多张完全重合）
+    const jitterX = (Math.random() - 0.5) * 80;
+    const jitterY = (Math.random() - 0.5) * 50;
+    const endX = window.innerWidth / 2 + jitterX;
+    const endY = window.innerHeight / 2 + jitterY;
+
+    const suit = SUITS[card.suit] || { symbol: '?', color: '#888' };
+    const el = document.createElement('div');
+    el.className = 'discard-flash';
+    el.style.left = `${startX}px`;
+    el.style.top = `${startY}px`;
+    el.style.setProperty('--card-color', card.color || '#888');
+    el.innerHTML = `
+      <span class="discard-flash-suit-tl" style="color:${suit.color}">${suit.symbol}</span>
+      <span class="discard-flash-name">${card.name}</span>
+      <span class="discard-flash-suit-br" style="color:${suit.color}">${suit.symbol}</span>
+    `;
+    document.body.appendChild(el);
+
+    // Phase 1：出现并悬停在源位置 1 秒（读牌时间）
+    // Phase 2：1s 后飞向屏幕正中，缩小淡出
+    setTimeout(() => {
+      el.style.transition = 'left 1s cubic-bezier(.4,0,.2,1), top 1s cubic-bezier(.4,0,.2,1), transform 1s ease, opacity 1s ease';
+      el.style.left = `${endX}px`;
+      el.style.top = `${endY}px`;
+      el.style.transform = 'translate(-50%, -50%) scale(0.4) rotate(8deg)';
+      el.style.opacity = '0.55';
+    }, 1000);
+
+    setTimeout(() => el.remove(), 2100);
+  }
+
+  // 屏幕正中弃牌堆：每次有牌入弃牌堆都同步刷新（堆叠卡背 + 张数）
+  updateCenterDiscardPile(count) {
+    const el = document.getElementById('center-discard-stack');
+    if (!el) return;
+    if (!count || count <= 0) {
+      el.classList.remove('has-cards');
+      el.innerHTML = '';
+      return;
+    }
+    el.classList.add('has-cards');
+    const visible = Math.min(count, 5);
+    const backs = Array.from({ length: visible }, () => '<div class="stack-back"></div>').join('');
+    el.innerHTML = `${backs}<span class="stack-count">${count} 张</span>`;
   }
 
   // 无效目标反馈：红色摇晃 + 日志

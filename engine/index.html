@@ -321,7 +321,52 @@
       overflow: hidden;
     }
 
-    /* 上方对手区：所有对手沿顶部弧形排开，离得越近=距离越近（视觉对应游戏距离） */
+    /* 屏幕正中弃牌堆：累计的卡背堆叠 + 张数。被 .game-area 包住，绝对居中 */
+    .center-discard-stack {
+      position: absolute;
+      left: 50%;
+      top: 38%;
+      transform: translate(-50%, -50%);
+      z-index: 4;
+      display: none;
+      align-items: center;
+      pointer-events: none;
+    }
+    .center-discard-stack.has-cards { display: flex; }
+    .center-discard-stack .stack-back {
+      width: 56px;
+      height: 80px;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #1e2a4a, #2c3e50);
+      border: 2px solid rgba(255,255,255,0.28);
+      margin-left: -42px;
+      position: relative;
+      box-shadow: -3px 3px 10px rgba(0,0,0,0.55);
+    }
+    .center-discard-stack .stack-back:first-child { margin-left: 0; }
+    .center-discard-stack .stack-back::after {
+      content: '🏀';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      opacity: 0.55;
+    }
+    .center-discard-stack .stack-count {
+      margin-left: 14px;
+      background: var(--primary);
+      color: #1a1a2e;
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-weight: 800;
+      font-size: 14px;
+      letter-spacing: 0.5px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+    }
+    /* 让弃牌区在 .game-area 里能定位 */
+    .game-area { position: relative; }
     .opponents-area {
       position: relative;
       flex: 1;
@@ -681,6 +726,15 @@
       color: var(--text);
       border: 1px solid var(--border);
       font-weight: 600;
+      cursor: pointer;
+      position: relative;
+      z-index: 7;
+      transition: background 0.15s, border-color 0.15s, transform 0.15s;
+    }
+    .equip-tag:hover {
+      background: rgba(243, 156, 18, 0.15);
+      border-color: var(--primary);
+      transform: translateY(-1px);
     }
     
     /* 手牌区 */
@@ -1234,6 +1288,54 @@
       animation: card-burst 1.85s cubic-bezier(.18,.85,.4,1) forwards;
     }
 
+    /* 弃牌飞行动效：从源玩家弹出明牌，1s 静止读牌后飞向顶部弃牌堆 */
+    @keyframes discard-flash-pop {
+      0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.4) rotate(-8deg); }
+      35%  { opacity: 1; transform: translate(-50%, -75%) scale(1.18) rotate(2deg); }
+      80%  { opacity: 1; transform: translate(-50%, -75%) scale(1.1) rotate(-2deg); }
+      100% { opacity: 1; transform: translate(-50%, -75%) scale(1.05) rotate(0deg); }
+    }
+    .discard-flash {
+      position: fixed;
+      width: 70px;
+      height: 92px;
+      background: linear-gradient(135deg, var(--card-color, #888), #1a1a2e);
+      border: 2px solid rgba(255,255,255,0.65);
+      border-radius: 8px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.6), 0 0 22px rgba(255,255,255,0.18);
+      z-index: 200;
+      pointer-events: none;
+      transform: translate(-50%, -50%) scale(1.1);
+      animation: discard-flash-pop 0.6s cubic-bezier(.18,.85,.4,1) forwards;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      align-items: center;
+      justify-items: center;
+      padding: 4px 6px;
+    }
+    .discard-flash-suit-tl {
+      justify-self: start;
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1;
+      text-shadow: 0 1px 0 #fff;
+    }
+    .discard-flash-name {
+      color: #fff;
+      font-weight: 900;
+      font-size: 13px;
+      text-align: center;
+      text-shadow: 0 1px 2px rgba(0,0,0,0.7);
+    }
+    .discard-flash-suit-br {
+      justify-self: end;
+      font-size: 18px;
+      font-weight: 900;
+      line-height: 1;
+      text-shadow: 0 1px 0 #fff;
+      transform: rotate(180deg);
+    }
+
     /* 无效目标点击的红色摇晃 */
     @keyframes shake-invalid {
       0%, 100% { transform: translateX(0); }
@@ -1444,9 +1546,11 @@
     }
     .winner-actions .btn { padding: 10px 22px; font-size: 14px; }
 
-    /* 距离标签 */
+    /* 距离标签：绝对定位在 player-card 右上角（按 % 取位置，永不出框） */
     .distance-tag {
-      display: inline-block;
+      position: absolute;
+      top: 4%;
+      right: 4%;
       padding: 2px 8px;
       border-radius: 999px;
       font-size: 11px;
@@ -1454,8 +1558,12 @@
       background: rgba(56, 189, 248, 0.18);
       color: #38bdf8;
       letter-spacing: 0.4px;
-      margin-left: 6px;
+      min-width: 22px;
+      text-align: center;
+      z-index: 6;
+      pointer-events: auto;
     }
+    .distance-tag:empty { display: none; }
     .distance-tag.out-of-range { background: rgba(231, 76, 60, 0.2); color: #ff6b6b; }
     .distance-tag.self { background: rgba(243, 156, 18, 0.2); color: var(--primary); }
 
@@ -1820,6 +1928,8 @@
         <!-- 玩家区域 -->
         <div class="game-area">
           <div class="opponents-area" id="opponents-area"></div>
+          <!-- 屏幕正中：弃牌堆视觉指示（卡背堆叠 + 张数） -->
+          <div class="center-discard-stack" id="center-discard-stack"></div>
           <div class="human-section">
             <div class="human-card-wrap" id="human-card-wrap"></div>
             <div class="human-hand-wrap">
