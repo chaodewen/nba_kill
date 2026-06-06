@@ -587,6 +587,7 @@ export class Game {
     const jiedaoTarget = playersWithWeapon[Math.floor(Math.random() * playersWithWeapon.length)];
     
     this.renderer.addLog(`📜 ${player.character.name} 对 ${jiedaoTarget.character.name} 使用【做球】`, 'play');
+    this.renderer.flashCardPlay(player, '做球', '#95a5a6');
     
     // 步骤3: 检查目标是否有可攻击的对象
     const shaTarget = this.findValidTarget(jiedaoTarget);
@@ -654,6 +655,7 @@ export class Game {
   // 做球 — 玩家手动指定（jiedaoTarget = 装备武器的队友，shaTarget = 让他攻击的对象）
   executeJiedaoManual(player, jiedaoTarget, shaTarget, card) {
     this.renderer.addLog(`📜 ${player.character.name} 对 ${jiedaoTarget.character.name} 使用【做球】 → 让其攻击 ${shaTarget.character.name}`, 'play');
+    this.renderer.flashCardPlay(player, '做球', '#95a5a6');
 
     if (jiedaoTarget.handCards.some(c => c.key === 'sha')) {
       const shaIndex = jiedaoTarget.handCards.findIndex(c => c.key === 'sha');
@@ -704,6 +706,7 @@ export class Game {
   }
   handleTaoyuan(player, card) {
     this.renderer.addLog(`📜 使用【官方暂停】`, 'play');
+    this.renderer.flashCardPlay(player, '官方暂停', '#2ecc71');
     
     this.players.forEach(p => {
       if (p.isAlive && p.hp < p.maxHp) {
@@ -756,6 +759,7 @@ export class Game {
     this.deck.discard(target.card);
     
     this.renderer.addLog(`🛡️ ${player.character.name} 使用【裁判回看】，抵消了 ${target.player.character.name} 的【${cardName}】`, 'skill');
+    this.renderer.flashCardPlay(player, '裁判回看', '#8e44ad');
     
     this.deck.discard(card);
     this.renderer.updatePlayer(target.player);
@@ -917,6 +921,7 @@ export class Game {
 
   handleWuzhong(player) {
     this.renderer.addLog(`📜 使用【战术板】`, 'play');
+    this.renderer.flashCardPlay(player, '战术板', '#f39c12');
     const cards = this.deck.drawMultiple(2);
     player.drawCards(cards);
     this.renderer.updatePlayer(player);
@@ -927,6 +932,7 @@ export class Game {
 
   handleJuedou(player, target, card) {
     this.renderer.addLog(`⚔️ 对 ${target.character.name} 使用【决斗】`, 'play');
+    this.renderer.flashCardPlay(player, '单挑', '#e67e22');
 
     // 默认每边 1 张投；NBA 球员的施压技能由技能系统处理
     const needShaCount = 1;
@@ -1008,6 +1014,7 @@ export class Game {
       return;
     }
     this.renderer.addLog(`📜 对 ${target.character.name} 使用【抢断】`, 'play');
+    this.renderer.flashCardPlay(player, '抢断', '#1abc9c');
     if (target.handCards.length > 0) {
       const idx = Math.floor(Math.random() * target.handCards.length);
       const card = target.handCards.splice(idx, 1)[0];
@@ -1034,6 +1041,7 @@ export class Game {
       return;
     }
     this.renderer.addLog(`📜 对 ${target.character.name} 使用【迫使失误】`, 'play');
+    this.renderer.flashCardPlay(player, '迫使失误', '#34495e');
     if (target.handCards.length > 0) {
       const idx = Math.floor(Math.random() * target.handCards.length);
       const card = target.handCards.splice(idx, 1)[0];
@@ -1198,6 +1206,7 @@ export class Game {
 
   handleNanman(player, card) {
     this.renderer.addLog(`📜 ${player.character.name} 使用【全场紧逼】 — 所有人需要打出【投】`, 'play');
+    this.renderer.flashCardPlay(player, '全场紧逼', '#c0392b');
     const targets = this.players.filter(p => p !== player && p.isAlive);
     this.deck.discard(card);
     this.processAoeSequential(player, targets, 'sha', '投', '全场紧逼', 0);
@@ -1205,6 +1214,7 @@ export class Game {
 
   handleWanjian(player, card) {
     this.renderer.addLog(`📜 ${player.character.name} 使用【三分雨】 — 所有人需要打出【盖】`, 'play');
+    this.renderer.flashCardPlay(player, '三分雨', '#e74c3c');
     const targets = this.players.filter(p => p !== player && p.isAlive);
     this.deck.discard(card);
     this.processAoeSequential(player, targets, 'shan', '盖', '三分雨', 0);
@@ -1252,6 +1262,7 @@ export class Game {
     }
     target.judgeCards.push(card);
     this.renderer.addLog(`🎭 对 ${target.character.name} 使用【犯规麻烦】`, 'play');
+    this.renderer.flashCardPlay(player, '犯规麻烦', '#f39c12');
     this.renderer.updateUI(this);
     this.continueAfterCard(player, 400);
   }
@@ -1265,6 +1276,7 @@ export class Game {
     }
     target.judgeCards.push(card);
     this.renderer.addLog(`🍚 对 ${target.character.name} 使用【体能危机】（下回合摸牌阶段判定）`, 'play');
+    this.renderer.flashCardPlay(player, '体能危机', '#d35400');
     this.renderer.updatePlayer(target);
     this.renderer.updateUI(this);
     this.continueAfterCard(player, 400);
@@ -1273,6 +1285,7 @@ export class Game {
   handleShandian(player, card) {
     player.judgeCards.push(card);
     this.renderer.addLog(`⚡ ${player.character.name} 对自己使用【伤病隐患】（下回合准备阶段判定）`, 'play');
+    this.renderer.flashCardPlay(player, '伤病隐患', '#3498db');
     this.renderer.updatePlayer(player);
     this.renderer.updateUI(this);
     this.continueAfterCard(player, 400);

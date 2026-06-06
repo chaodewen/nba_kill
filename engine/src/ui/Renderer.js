@@ -754,8 +754,8 @@ export class Renderer {
     }
     const { message, type } = this._logQueue.shift();
     this._renderLogEntry(message, type);
-    // 每条间隔 1.2s（队列长时自动缩短到 0.6s 防止积压过久）
-    const gap = this._logQueue.length > 4 ? 600 : 1200;
+    // 每条日志展现 2s 后再弹下一条；积压超过 6 条时缩到 1s 防止日志严重落后游戏
+    const gap = this._logQueue.length > 6 ? 1000 : 2000;
     this._logTimer = setTimeout(() => this._processLogQueue(), gap);
   }
 
