@@ -1,0 +1,2020 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1d428a">
+  <title>NBA Kill</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='50' height='100' rx='12' fill='%231d428a'/><rect x='50' width='50' height='100' rx='12' fill='%23c8102e'/><g fill='%23fff' stroke='%23fff' stroke-linecap='round' stroke-linejoin='round'><circle cx='48' cy='14' r='4.5'/><path d='M43 20 Q42 36 45 46 L52 46 Q56 36 55 20 Z' stroke-width='0.5'/><path d='M55 22 L68 27 L73 35' fill='none' stroke-width='4.5'/><path d='M43 22 L34 32 L32 38' fill='none' stroke-width='4.5'/><path d='M52 46 L56 56 L52 64' fill='none' stroke-width='5'/><path d='M45 46 L40 56 L40 62' fill='none' stroke-width='5'/></g><circle cx='74' cy='36' r='4' fill='%23f97316' stroke='%231a1a2e' stroke-width='0.6'/><text x='50' y='92' text-anchor='middle' font-family='Georgia,serif' font-style='italic' font-size='22' font-weight='900' fill='%23fde047' stroke='%230c0c1c' stroke-width='2.2' paint-order='stroke fill'>NBA</text></svg>">
+  <style>
+    :root {
+      --bg-primary: #0d0d1a;
+      --bg-secondary: #1a1a2e;
+      --bg-card: #252542;
+      --bg-active: #2d2d4a;
+      --border: #3d3d5c;
+      --primary: #f39c12;
+      --danger: #e74c3c;
+      --success: #2ecc71;
+      --info: #3498db;
+      --wei: #5dade2;
+      --shu: #2ecc71;
+      --wu: #ec7063;
+      --qun: #f4d03f;
+      --text: #ecf0f1;
+      --text-muted: #95a5a6;
+    }
+    
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    
+    html, body {
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
+      color: var(--text);
+      font-size: 14px;
+    }
+    
+    .app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: linear-gradient(180deg, var(--bg-primary) 0%, #0a0a15 100%);
+    }
+    
+    /* 暂停遮罩 */
+    .pause-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.8);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    
+    .pause-overlay.show {
+      display: flex;
+    }
+    
+    .pause-box {
+      text-align: center;
+      padding: 30px 50px;
+      background: var(--bg-card);
+      border-radius: 16px;
+      border: 2px solid var(--primary);
+      box-shadow: 0 0 30px rgba(243, 156, 18, 0.3);
+    }
+    
+    .pause-text {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 20px;
+    }
+    
+    .pause-hint {
+      font-size: 14px;
+      color: var(--text-muted);
+    }
+    
+    /* 顶部 */
+    .header {
+      background: var(--bg-secondary);
+      padding: 8px 12px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .logo-svg {
+      flex-shrink: 0;
+      filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+      animation: logo-spin 0.6s ease-out;
+    }
+    @keyframes logo-spin {
+      0%   { transform: rotate(-180deg) scale(0.4); opacity: 0; }
+      100% { transform: rotate(0deg) scale(1); opacity: 1; }
+    }
+    .logo:hover .logo-svg {
+      animation: logo-bounce 0.5s ease-out;
+    }
+    @keyframes logo-bounce {
+      0%, 100% { transform: rotate(0deg) scale(1); }
+      30%  { transform: rotate(15deg) scale(1.15); }
+      60%  { transform: rotate(-10deg) scale(1.05); }
+    }
+    
+    .logo h1 {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .deck-info {
+      display: flex;
+      gap: 8px;
+      font-size: 11px;
+    }
+    
+    .deck-stat {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      padding: 2px 6px;
+      background: var(--bg-card);
+      border-radius: 4px;
+    }
+    
+    .deck-stat strong { color: var(--primary); font-size: 12px; }
+    
+    .status-badge {
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    
+    .status-waiting { background: var(--info); color: #fff; }
+    .status-playing { background: var(--success); color: #fff; }
+    .status-paused { background: var(--primary); color: #000; }
+    .status-ended { background: var(--danger); color: #fff; }
+    
+    .settings-btn {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 14px;
+      transition: transform 0.1s;
+    }
+
+    .settings-btn:hover { transform: scale(1.1); }
+
+    /* 顶部按钮（规则/信息/设置）：图标加大 + 文字标签 */
+    .header-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: transform 0.12s, background 0.12s, border-color 0.12s;
+      letter-spacing: 0.4px;
+      flex-shrink: 0;
+    }
+    .header-btn:hover {
+      background: var(--bg-active);
+      border-color: var(--primary);
+      transform: translateY(-1px);
+    }
+    .header-btn-icon { font-size: 18px; line-height: 1; }
+    .header-btn-label { font-size: 13px; }
+    
+    /* 主内容 */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 8px;
+      overflow: hidden;
+    }
+    
+    /* 回合信息栏 */
+    .turn-bar {
+      background: var(--bg-secondary);
+      padding: 8px 12px;
+      border-radius: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .turn-info {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .turn-number {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    
+    .phase-tag {
+      font-size: 11px;
+      padding: 3px 8px;
+      background: var(--primary);
+      color: #000;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    
+    .phase-tag.discard {
+      animation: pulse 1s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    /* 目标选择提示横幅 */
+    .target-banner {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 8px;
+      background: linear-gradient(90deg, #f39c12, #e67e22);
+      color: #1a1a2e;
+      font-weight: 700;
+      font-size: 14px;
+      box-shadow: 0 0 16px rgba(243, 156, 18, 0.5);
+      animation: target-banner-pulse 1.6s ease-in-out infinite;
+    }
+    .target-banner-icon { font-size: 18px; }
+    .target-banner-text { flex: 1; }
+    .target-banner-cancel {
+      background: rgba(0,0,0,0.25);
+      border: none;
+      color: #1a1a2e;
+      padding: 5px 12px;
+      border-radius: 6px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .target-banner-cancel:hover { background: rgba(0,0,0,0.4); }
+
+    @keyframes target-banner-pulse {
+      0%, 100% { box-shadow: 0 0 16px rgba(243, 156, 18, 0.5); }
+      50% { box-shadow: 0 0 26px rgba(243, 156, 18, 0.85); }
+    }
+
+    /* 可点击的目标球员高亮 */
+    .player-card.target-candidate {
+      outline: 3px solid #f39c12;
+      outline-offset: 3px;
+      cursor: pointer;
+      animation: candidate-pulse 1.2s ease-in-out infinite;
+      position: relative;
+    }
+    .player-card.target-candidate::after {
+      content: '🎯';
+      position: absolute;
+      top: -10px;
+      right: -10px;
+      font-size: 18px;
+      background: #f39c12;
+      border-radius: 50%;
+      width: 26px;
+      height: 26px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 10px rgba(243, 156, 18, 0.7);
+    }
+    @keyframes candidate-pulse {
+      0%, 100% { outline-color: #f39c12; }
+      50% { outline-color: #f1c40f; }
+    }
+    /* 选中的手牌高亮，便于看出要再点一次取消 */
+    .mini-card.selected {
+      outline: 3px solid #f1c40f;
+      outline-offset: 1px;
+      transform: translateY(-4px);
+    }
+    
+    /* 玩家区域 — 上方对手圆桌 + 下方自己独立大格（全相对单位） */
+    .game-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6vh;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* 上方对手区：所有对手沿顶部弧形排开，离得越近=距离越近（视觉对应游戏距离） */
+    .opponents-area {
+      position: relative;
+      flex: 1;
+      min-height: 0;
+      overflow: visible;
+      padding: 4px 4px 0;
+    }
+    .opp-seat {
+      position: absolute;
+      transform: translate(-50%, -50%);
+      width: clamp(140px, 18%, 200px);
+      height: clamp(130px, 18vh, 170px);
+    }
+    .opponents-area.opponents-3 .opp-seat { width: clamp(220px, 30%, 340px); height: clamp(150px, 20vh, 195px); }
+    .opponents-area.opponents-4 .opp-seat { width: clamp(195px, 24%, 270px); height: clamp(142px, 19vh, 180px); }
+    .opponents-area.opponents-5 .opp-seat { width: clamp(175px, 19%, 235px); height: clamp(135px, 18vh, 168px); }
+    .opponents-area.opponents-6 .opp-seat { width: clamp(160px, 16%, 205px); height: clamp(128px, 17vh, 158px); }
+    .opponents-area.opponents-7 .opp-seat { width: clamp(150px, 14%, 185px); height: clamp(122px, 16vh, 150px); }
+    .opp-seat .player-card { width: 100%; height: 100%; }
+
+    /* 底部人类区：左 玩家信息卡 + 右 手牌+快捷按钮 */
+    .human-section {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      flex: 0 0 auto;
+      align-items: stretch;
+      padding: 6px 6px 0;
+      border-top: 1px dashed var(--border);
+      min-height: clamp(150px, 22vh, 210px);
+    }
+    .human-card-wrap {
+      flex: 0 0 clamp(280px, 28%, 360px);
+      min-height: 0;
+      display: flex;
+    }
+    .human-card-wrap .player-card {
+      width: 100%;
+      height: 100%;
+      border-color: var(--primary);
+      box-shadow: 0 0 18px rgba(243, 156, 18, 0.18);
+    }
+    .human-hand-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-width: 0;
+    }
+    .human-hand {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      align-items: center;
+      justify-content: flex-start;
+      padding: 6px 8px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.07);
+      min-height: 80px;
+      max-height: 130px;
+      overflow-y: auto;
+    }
+    .human-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      padding: 0 4px 4px;
+    }
+
+    /* 旧的玩家网格（被取代）保留但不影响布局 */
+    .players-grid {
+      flex: 1;
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 10px;
+      overflow-y: auto;
+      align-content: start;
+    }
+
+    /* 玩家卡片 — 高度 100% 由所在容器决定，不再写死 px */
+    .player-card {
+      background: var(--bg-card);
+      border-radius: 10px;
+      padding: 0.55em 0.75em;
+      border: 2px solid var(--border);
+      position: relative;
+      transition: all 0.3s;
+      opacity: 0.85;
+      height: 100%;
+      min-height: 7em;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35em;
+      overflow: hidden;
+    }
+    
+    .player-card.active {
+      background: var(--bg-active);
+      border-color: var(--primary);
+      opacity: 1;
+      box-shadow: 0 0 20px rgba(243, 156, 18, 0.3);
+    }
+
+    .player-card.human-player {
+      border-style: solid;
+      box-shadow: inset 0 0 0 1px rgba(255,255,255,0.12);
+    }
+
+    .player-card:not(.human-player) {
+      cursor: pointer;
+    }
+    
+    .player-card.dying {
+      animation: dying-blink 0.5s ease-in-out infinite;
+      border-color: var(--danger);
+    }
+    
+    @keyframes dying-blink {
+      0%, 100% { box-shadow: 0 0 5px rgba(231, 76, 60, 0.5); }
+      50% { box-shadow: 0 0 25px rgba(231, 76, 60, 0.9); }
+    }
+    
+    .player-card.dead {
+      opacity: 0.3;
+      filter: grayscale(100%);
+    }
+    
+    .player-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    
+    .player-avatar {
+      width: 44px;
+      height: 44px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+      font-weight: 700;
+      color: #fff;
+      flex-shrink: 0;
+      border: 3px solid;
+      transition: transform 0.2s;
+      overflow: hidden;
+      background: var(--bg-secondary);
+    }
+    .player-avatar-img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .avatar-fallback {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 任意状态变更时，玩家卡片整体闪一下，提示发生了变化 */
+    .player-card.flash-change {
+      animation: card-flash-change 0.7s ease-out;
+    }
+    @keyframes card-flash-change {
+      0%   { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0); }
+      30%  { box-shadow: 0 0 22px 6px rgba(243, 156, 18, 0.55); }
+      100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0); }
+    }
+    
+    .player-card.active .player-avatar {
+      transform: scale(1.1);
+    }
+    
+    .kingdom-wei .player-avatar { background: var(--wei); border-color: var(--wei); }
+    .kingdom-shu .player-avatar { background: var(--shu); border-color: var(--shu); }
+    .kingdom-wu .player-avatar { background: var(--wu); border-color: var(--wu); }
+    .kingdom-qun .player-avatar { background: var(--qun); border-color: var(--qun); }
+    
+    .player-info { flex: 1; min-width: 0; }
+    
+    .player-name-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
+    }
+
+    .player-name {
+      font-size: 15px;
+      font-weight: 700;
+      transition: font-size 0.2s;
+      white-space: nowrap;
+    }
+    
+    .player-card.active .player-name {
+      font-size: 17px;
+    }
+    
+    /* 位置标 — 方形 + 短名（内线/后卫/锋线），与身份标对齐 */
+    .position-tag {
+      display: inline-block;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 5px;
+      background: var(--pos-color, var(--bg-secondary));
+      color: #fff;
+      font-weight: 800;
+      letter-spacing: 0.6px;
+      white-space: nowrap;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.25);
+    }
+    .position-inside  { --pos-color: #16a34a; }
+    .position-guard   { --pos-color: #2f80ed; }
+    .position-forward { --pos-color: #e11d48; }
+
+    /* 旧 kingdom-tag 保留作降级显示 */
+    .kingdom-tag {
+      font-size: 9px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-weight: 600;
+    }
+    .kingdom-wei .kingdom-tag { background: var(--wei); color: #fff; }
+    .kingdom-shu .kingdom-tag { background: var(--shu); color: #fff; }
+    .kingdom-wu .kingdom-tag { background: var(--wu); color: #fff; }
+    .kingdom-qun .kingdom-tag { background: var(--qun); color: #000; }
+
+    /* 身份标 — 方形 + 强对比配色 + 渐变 + 发光，和位置标尺寸对齐 */
+    /* 默认隐藏对手身份；自己的可见；调试模式下全部可见；阵亡的玩家身份强制揭晓 */
+    .identity-tag {
+      display: none;
+      font-size: 11px;
+      padding: 3px 10px;
+      border-radius: 5px;
+      font-weight: 800;
+      letter-spacing: 0.8px;
+      border: 1.5px solid transparent;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+      white-space: nowrap;
+    }
+    .player-card.human-player .identity-tag,
+    .player-card.dead .identity-tag,
+    body.debug-identity .identity-tag {
+      display: inline-block;
+    }
+
+    .identity-core {
+      background: linear-gradient(90deg, #fbbf24, #f59e0b);
+      color: #1a1a2e;
+      border-color: #fde047;
+      box-shadow: 0 0 14px rgba(251, 191, 36, 0.55);
+    }
+    .identity-teammate {
+      background: linear-gradient(90deg, #38bdf8, #2563eb);
+      color: #fff;
+      border-color: #93c5fd;
+    }
+    .identity-opponent {
+      background: linear-gradient(90deg, #f87171, #be123c);
+      color: #fff;
+      border-color: #fca5a5;
+    }
+    .identity-solo {
+      background: linear-gradient(90deg, #c084fc, #6d28d9);
+      color: #fff;
+      border-color: #d8b4fe;
+    }
+    .identity-unknown {
+      background: var(--bg-secondary);
+      color: var(--text-muted);
+    }
+    
+    .player-skill {
+      font-size: 10px;
+      color: var(--primary);
+      margin-top: 2px;
+      cursor: pointer;
+    }
+    
+    .player-skill:hover {
+      text-decoration: underline;
+    }
+    
+    .hand-badge {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      background: var(--primary);
+      color: #000;
+      font-size: 10px;
+      padding: 3px 8px;
+      border-radius: 10px;
+      font-weight: 700;
+    }
+    
+    /* 状态图标区 */
+    .status-area {
+      position: absolute;
+      top: 36px;
+      right: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    
+    .status-icon {
+      font-size: 16px;
+      line-height: 1;
+    }
+    
+    /* 体能 */
+    .hp-display {
+      display: flex;
+      align-items: center;
+      gap: 2px;
+      margin-bottom: 6px;
+      font-size: 18px;
+      font-weight: 700;
+    }
+
+    .hp-number { color: var(--danger); font-size: 22px; }
+
+    /* 装备栏 */
+    .equipment-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-bottom: 6px;
+      min-height: 24px;
+    }
+
+    .equip-tag {
+      font-size: 12px;
+      padding: 4px 8px;
+      background: var(--bg-secondary);
+      border-radius: 5px;
+      color: var(--text);
+      border: 1px solid var(--border);
+      font-weight: 600;
+    }
+    
+    /* 手牌区 */
+    .hand-section {
+      margin-top: auto;
+      padding-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .hand-cards {
+      display: flex;
+      gap: 4px;
+      overflow-x: hidden;
+      padding: 0;
+      scrollbar-width: thin;
+    }
+
+    /* 对手卡片紧凑模式：缩小头像和间距，给底部手牌堆腾空间 */
+    .opp-seat .player-card { padding: 0.4em 0.55em 44px; gap: 0.2em; position: relative; }
+    .opp-seat .player-header { gap: 7px; margin-bottom: 4px; }
+    .opp-seat .player-avatar { width: 36px; height: 36px; font-size: 16px; border-width: 2px; }
+    .opp-seat .hp-display { margin-bottom: 2px; font-size: 15px; }
+    .opp-seat .hp-number { font-size: 18px; }
+    .opp-seat .equipment-bar { gap: 3px; }
+    .opp-seat .player-skill { font-size: 11px; }
+    .opp-seat .player-name { font-size: 13px; }
+    /* 手牌区固定到卡片底部 38px 高度，居中显示 */
+    .opp-seat .hand-section {
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      bottom: 4px;
+      height: 38px;
+      margin-top: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .opp-seat .hand-stacked { height: 100%; padding-left: 14px; width: auto; }
+    .opp-seat .hand-back { width: 26px; height: 36px; margin-left: -14px; }
+    .opp-seat .hand-back::after { font-size: 14px; }
+    .opp-seat .hand-back.hand-back-count::after { font-size: 14px; }
+    
+    .hand-cards::-webkit-scrollbar {
+      height: 4px;
+    }
+    
+    .hand-cards::-webkit-scrollbar-thumb {
+      background: var(--border);
+      border-radius: 2px;
+    }
+    
+    .mini-card {
+      width: 70px;
+      height: 86px;
+      border-radius: 8px;
+      background: var(--card-color, var(--danger));
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid rgba(255,255,255,0.2);
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+      flex-grow: 0;
+      gap: 4px;
+      padding: 4px 3px;
+      box-sizing: border-box;
+    }
+
+    .mini-card:hover {
+      transform: translateY(-4px) scale(1.05);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.45);
+      border-color: #fff;
+    }
+
+    .mini-card.selected {
+      border-color: var(--primary);
+      box-shadow: 0 0 10px rgba(243, 156, 18, 0.5);
+    }
+
+    .mini-card.disabled {
+      opacity: 0.4;
+      filter: grayscale(50%);
+      cursor: not-allowed;
+    }
+
+    .mini-card-suit {
+      font-size: 22px;
+      color: #fff;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .mini-card-name {
+      font-size: 12px;
+      color: #fff;
+      font-weight: 700;
+      line-height: 1.15;
+      letter-spacing: -0.2px;
+      text-align: center;
+      width: 100%;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+      hyphens: auto;
+    }
+    
+    /* 快捷操作栏 — 加粗按钮，方便点击 */
+    .quick-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 6px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+
+    .quick-btn {
+      flex: 1;
+      padding: 11px 8px;
+      font-size: 14px;
+      font-weight: 700;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.15s;
+      min-height: 38px;
+      letter-spacing: 0.4px;
+    }
+
+    .quick-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.35); }
+
+    /* 无效目标 / 操作被拒 — 统一红色摇头动效 */
+    .player-card.flash-invalid,
+    .player-card.flash-reject {
+      animation: card-reject-shake 0.55s ease-in-out;
+    }
+    @keyframes card-reject-shake {
+      0%, 100% { transform: translateX(0); box-shadow: 0 0 0 0 rgba(231, 76, 60, 0); }
+      15%      { transform: translateX(-9px); box-shadow: 0 0 22px 4px rgba(231, 76, 60, 0.55); }
+      30%      { transform: translateX(8px); }
+      45%      { transform: translateX(-7px); }
+      60%      { transform: translateX(6px); }
+      80%      { transform: translateX(-3px); box-shadow: 0 0 10px 2px rgba(231, 76, 60, 0.45); }
+    }
+    
+    .quick-btn.sha { background: var(--danger); color: #fff; }
+    .quick-btn.tao { background: var(--success); color: #fff; }
+    .quick-btn.discard { background: var(--text-muted); color: #fff; }
+    .quick-btn.end { background: var(--bg-secondary); color: var(--text); border: 1px solid var(--border); }
+    
+    .quick-btn:disabled {
+      opacity: 0.3;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .quick-btn.highlight {
+      animation: btn-pulse 0.8s ease-in-out infinite;
+    }
+    
+    @keyframes btn-pulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(243, 156, 18, 0.4); }
+      50% { box-shadow: 0 0 0 8px rgba(243, 156, 18, 0); }
+    }
+    
+    /* 非当前回合隐藏操作按钮 */
+    .player-card:not(.active) .quick-actions {
+      display: none;
+    }
+    
+    /* 底部面板 — 日志撑满剩余高度 */
+    .bottom-panel {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex-shrink: 0;
+      min-height: 0;
+    }
+    .bottom-panel .log-panel {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+    }
+    .bottom-panel .log-content {
+      flex: 1;
+      max-height: none !important;
+      min-height: 0;
+      overflow-y: auto;
+    }
+    
+    /* 全局手牌筛选 */
+    .global-filter {
+      display: flex;
+      gap: 6px;
+      background: var(--bg-secondary);
+      padding: 6px 10px;
+      border-radius: 8px;
+    }
+    
+    .filter-tab {
+      font-size: 11px;
+      padding: 4px 10px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      color: var(--text-muted);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    
+    .filter-tab.active {
+      background: var(--primary);
+      color: #000;
+      border-color: var(--primary);
+    }
+    
+    .control-bar {
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      padding: 8px;
+      display: flex;
+      gap: 6px;
+      align-items: stretch;
+    }
+
+    .player-count-select {
+      background: var(--bg-card);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      min-width: 70px;
+    }
+    .player-count-select:hover { border-color: var(--primary); }
+    .player-count-select:focus { outline: 2px solid var(--primary); }
+    
+    .btn {
+      flex: 1;
+      padding: 10px;
+      font-size: 12px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    
+    .btn:active { transform: scale(0.96); }
+    
+    .btn-primary { background: var(--primary); color: #000; }
+    .btn-secondary { background: var(--bg-card); color: var(--text); border: 1px solid var(--border); }
+    .btn-danger { background: transparent; color: var(--danger); border: 1px solid var(--danger); }
+    
+    /* 日志 */
+    .log-panel {
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    
+    .log-header {
+      padding: 6px 10px;
+      font-size: 11px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+    
+    .log-header:hover { background: var(--bg-card); }
+    
+    .log-content {
+      max-height: 280px;
+      overflow-y: auto;
+      transition: max-height 0.3s;
+    }
+
+    .log-content.show {
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .log-content-inner {
+      padding: 6px 10px;
+      font-size: 12px;
+      line-height: 1.55;
+    }
+
+    .log-entry {
+      padding: 4px 6px;
+      margin: 2px 0;
+      border-radius: 3px;
+      white-space: normal;
+      word-break: break-all;
+      background: rgba(255,255,255,0.02);
+      border-left: 3px solid transparent;
+    }
+
+    .log-entry.new {
+      animation: log-slide-in 0.4s ease-out, log-flash 2s ease-out;
+    }
+
+    @keyframes log-slide-in {
+      0% { transform: translateX(-12px); opacity: 0; }
+      100% { transform: translateX(0); opacity: 1; }
+    }
+
+    @keyframes log-flash {
+      0%   { background: rgba(243, 156, 18, 0.35); border-left-color: var(--primary); }
+      40%  { background: rgba(243, 156, 18, 0.18); border-left-color: var(--primary); }
+      100% { background: rgba(255,255,255,0.02); border-left-color: transparent; }
+    }
+
+    .log-entry:hover {
+      background: rgba(255,255,255,0.06);
+    }
+    
+    .log-system { color: var(--primary); }
+    .log-turn { color: var(--danger); font-weight: 600; }
+    .log-phase { color: var(--info); }
+    .log-draw { color: var(--success); }
+    .log-play { color: #9b59b6; }
+    .log-skill { color: var(--primary); }
+    .log-death { color: var(--danger); font-weight: 600; }
+    
+    /* 挑牌弹窗 */
+    .card-pick-modal {
+      align-items: flex-start;
+      padding-top: 8vh;
+    }
+    .card-pick-box {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 16px 18px;
+      max-width: 560px;
+      width: 92%;
+      max-height: 80vh;
+      overflow-y: auto;
+      border: 2px solid var(--primary);
+      box-shadow: 0 0 30px rgba(243, 156, 18, 0.4);
+    }
+    .card-pick-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .card-pick-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    .card-pick-cancel {
+      background: rgba(231, 76, 60, 0.2);
+      color: var(--danger);
+      border: 1px solid rgba(231, 76, 60, 0.4);
+      padding: 4px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+    }
+    .card-pick-cancel:hover { background: rgba(231, 76, 60, 0.35); }
+    .card-pick-body {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+    .card-pick-region {
+      grid-column: 1 / -1;
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      margin-top: 6px;
+      padding: 2px 4px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .card-pick-tile {
+      padding: 10px 8px;
+      border-radius: 8px;
+      background: var(--bg-secondary);
+      border: 2px solid var(--border);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .card-pick-tile:hover {
+      border-color: var(--primary);
+      transform: translateY(-3px);
+      box-shadow: 0 4px 16px rgba(243, 156, 18, 0.4);
+    }
+    .card-pick-tile-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 3px;
+    }
+    .card-pick-tile-suit {
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+    .card-pick-tile-desc {
+      font-size: 10px;
+      color: var(--text-muted);
+      line-height: 1.4;
+      margin-top: 4px;
+    }
+    .card-pick-tile-back {
+      background: linear-gradient(135deg, #2c3e50, #34495e);
+      color: rgba(255,255,255,0.6);
+      font-style: italic;
+    }
+    .card-pick-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-align: center;
+      padding: 4px 0 0;
+    }
+
+    /* 对手手牌：叠起来的卡背，最右一张显示数量数字 */
+    .hand-stacked {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 56px;
+      padding-left: 18px;
+    }
+    .hand-back {
+      width: 32px;
+      height: 46px;
+      border-radius: 5px;
+      background: linear-gradient(135deg, #1e2a4a, #2c3e50);
+      border: 2px solid rgba(255,255,255,0.22);
+      margin-left: -18px;
+      position: relative;
+      flex-shrink: 0;
+      box-shadow: -2px 2px 4px rgba(0,0,0,0.4);
+    }
+    .hand-back::after {
+      content: '🏀';
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 17px;
+      opacity: 0.5;
+    }
+    /* 最右一张：数量徽章风格 + 显示张数 */
+    .hand-back.hand-back-count {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+      border-color: rgba(255,255,255,0.5);
+      box-shadow: -2px 2px 6px rgba(0,0,0,0.4), 0 0 12px rgba(243, 156, 18, 0.55);
+      z-index: 5;
+    }
+    .hand-back.hand-back-count::after {
+      content: attr(data-count);
+      font-family: 'Impact', 'Arial Black', sans-serif;
+      font-size: 18px;
+      color: #1a1a2e;
+      font-weight: 900;
+      opacity: 1;
+      text-shadow: 0 1px 0 rgba(255,255,255,0.4);
+    }
+    .hand-empty {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-style: italic;
+      padding: 8px 4px;
+    }
+
+    /* 攻击模式：body 整体改光标 + 可击打目标的强烈 hover 反馈 */
+    body.target-selecting {
+      cursor: crosshair;
+    }
+    .player-card.target-candidate {
+      /* Hover：MOBA 经典攻击锁定光标（红色四角括号 + 中央十字）*/
+      cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><g fill='none' stroke='%23ff3838' stroke-width='3' stroke-linecap='round'><path d='M3 3 L3 11 M3 3 L11 3'/><path d='M29 3 L21 3 M29 3 L29 11'/><path d='M3 29 L3 21 M3 29 L11 29'/><path d='M29 29 L29 21 M29 29 L21 29'/></g><circle cx='16' cy='16' r='1.8' fill='%23ff3838'/><path d='M16 12 L16 14 M16 18 L16 20 M12 16 L14 16 M18 16 L20 16' stroke='%23ff3838' stroke-width='2' stroke-linecap='round'/></svg>") 16 16, crosshair;
+    }
+    .player-card.target-candidate:hover {
+      outline-color: var(--danger) !important;
+      outline-width: 4px !important;
+      box-shadow: 0 0 32px rgba(231, 76, 60, 0.55), 0 10px 24px rgba(0,0,0,0.4);
+    }
+    .player-card.target-candidate:hover::after {
+      content: '💥';
+      background: var(--danger);
+      transform: scale(1.3) rotate(15deg);
+      box-shadow: 0 0 18px rgba(231, 76, 60, 0.85);
+    }
+
+    /* HP 变化飘字 */
+    @keyframes hp-pop {
+      0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); }
+      20% { opacity: 1; transform: translate(-50%, -12px) scale(1.15); }
+      85% { opacity: 1; transform: translate(-50%, -42px) scale(1); }
+      100% { opacity: 0; transform: translate(-50%, -60px) scale(0.9); }
+    }
+    .hp-flash {
+      position: absolute;
+      left: 50%;
+      top: 36%;
+      font-size: 26px;
+      font-weight: 900;
+      pointer-events: none;
+      z-index: 50;
+      animation: hp-pop 1.7s ease-out forwards;
+      text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+      letter-spacing: 0.5px;
+    }
+    .hp-flash.damage { color: #ff6b6b; }
+    .hp-flash.heal   { color: #51e0a0; }
+
+    /* 出牌动效：玩家卡片上弹出一张被使用的牌名 */
+    @keyframes card-burst {
+      0%   { opacity: 0; transform: translate(-50%, -50%) scale(0.55) rotate(-4deg); }
+      18%  { opacity: 1; transform: translate(-50%, -55%) scale(1.18) rotate(2deg); }
+      55%  { opacity: 1; transform: translate(-50%, -90%) scale(1.02) rotate(-1deg); }
+      100% { opacity: 0; transform: translate(-50%, -130%) scale(0.92); }
+    }
+    .card-play-burst {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      background: linear-gradient(135deg, #3498db, #2c80b4);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-weight: 900;
+      font-size: 15px;
+      letter-spacing: 0.4px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.55), 0 0 18px rgba(52, 152, 219, 0.55);
+      pointer-events: none;
+      z-index: 60;
+      white-space: nowrap;
+      border: 2px solid rgba(255,255,255,0.6);
+      animation: card-burst 1.85s cubic-bezier(.18,.85,.4,1) forwards;
+    }
+
+    /* 无效目标点击的红色摇晃 */
+    @keyframes shake-invalid {
+      0%, 100% { transform: translateX(0); }
+      20% { transform: translateX(-5px); }
+      40% { transform: translateX(5px); }
+      60% { transform: translateX(-4px); }
+      80% { transform: translateX(4px); }
+    }
+    /* 旧的 flash-invalid 样式被上方统一动效替代 */
+    .player-card.flash-invalid {
+      outline: 3px solid var(--danger) !important;
+      outline-offset: 2px;
+    }
+    .player-card.target-non-candidate {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    /* 信息弹窗 */
+    .info-modal { z-index: 250; align-items: flex-start; padding-top: 8vh; }
+    .info-box {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 20px 26px;
+      max-width: 560px;
+      width: 92%;
+      border: 2px solid var(--primary);
+      box-shadow: 0 0 30px rgba(243, 156, 18, 0.3);
+    }
+    .info-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .info-title { font-size: 18px; font-weight: 800; color: var(--primary); }
+    .info-body { font-size: 14px; line-height: 1.7; color: var(--text); }
+    .info-row {
+      display: grid;
+      grid-template-columns: 84px 1fr;
+      gap: 12px;
+      padding: 6px 0;
+      align-items: start;
+    }
+    .info-label {
+      font-weight: 800;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      font-size: 12px;
+    }
+    .info-value { font-size: 14px; }
+    .info-value a { color: var(--primary); text-decoration: none; }
+    .info-value a:hover { text-decoration: underline; }
+    .info-value b { color: #f1c40f; }
+
+    /* 游戏规则弹窗 */
+    .rules-modal { z-index: 250; align-items: flex-start; padding-top: 5vh; }
+    .rules-box {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 18px 22px;
+      max-width: 720px;
+      width: 92%;
+      max-height: 85vh;
+      overflow-y: auto;
+      border: 2px solid var(--primary);
+      box-shadow: 0 0 30px rgba(243, 156, 18, 0.3);
+    }
+    .rules-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid var(--primary);
+      position: sticky;
+      top: -18px;
+      background: var(--bg-card);
+      z-index: 1;
+    }
+    .rules-title {
+      font-size: 18px;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .rules-body {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+    }
+    .rules-body h4 {
+      color: var(--primary);
+      margin-top: 14px;
+      margin-bottom: 6px;
+      font-size: 15px;
+      letter-spacing: 0.3px;
+    }
+    .rules-body h4:first-child { margin-top: 0; }
+    .rules-body p { margin-bottom: 8px; }
+    .rules-body ul { padding-left: 20px; margin-bottom: 8px; }
+    .rules-body li { margin-bottom: 4px; }
+    .rules-body b { color: #f1c40f; }
+
+    /* 胜利弹窗 */
+    .winner-modal { z-index: 300; }
+    .winner-box {
+      background: linear-gradient(135deg, var(--bg-card), var(--bg-secondary));
+      border: 3px solid var(--primary);
+      border-radius: 16px;
+      padding: 28px 32px;
+      max-width: 560px;
+      width: 92%;
+      box-shadow: 0 0 60px rgba(243, 156, 18, 0.4);
+      text-align: center;
+      animation: winner-pop 0.6s ease-out;
+    }
+    @keyframes winner-pop {
+      0% { transform: scale(0.5); opacity: 0; }
+      60% { transform: scale(1.05); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    .winner-emblem {
+      font-size: 64px;
+      margin-bottom: 6px;
+      animation: trophy-bounce 1.6s ease-in-out infinite;
+    }
+    @keyframes trophy-bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-8px); }
+    }
+    .winner-title {
+      font-size: 28px;
+      font-weight: 900;
+      color: var(--primary);
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+    .winner-subtitle {
+      font-size: 14px;
+      color: var(--text-muted);
+      margin-bottom: 18px;
+    }
+    .winner-reveal-title {
+      font-size: 12px;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed var(--border);
+    }
+    .winner-reveal {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 6px;
+      margin-bottom: 18px;
+    }
+    .winner-reveal-row {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 10px;
+      align-items: center;
+      padding: 8px 12px;
+      background: rgba(255,255,255,0.03);
+      border-radius: 6px;
+      border-left: 3px solid var(--border);
+    }
+    .winner-reveal-row.is-winner { border-left-color: var(--success); background: rgba(46, 204, 113, 0.1); }
+    .winner-reveal-row.is-dead   { opacity: 0.55; text-decoration: line-through; }
+    .winner-reveal-name { font-weight: 700; }
+    .winner-reveal-id   { font-size: 12px; color: var(--text-muted); }
+    .winner-reveal-status { font-size: 12px; }
+
+    /* 比赛结束 - 精彩镜头总结 */
+    .winner-highlights {
+      margin: 12px 0 14px;
+      padding: 12px 14px;
+      background: linear-gradient(135deg, rgba(243, 156, 18, 0.18), rgba(231, 76, 60, 0.12));
+      border-left: 3px solid var(--primary);
+      border-radius: 6px;
+    }
+    .winner-highlights-title {
+      font-size: 13px;
+      font-weight: 800;
+      color: var(--primary);
+      margin-bottom: 8px;
+      letter-spacing: 0.5px;
+    }
+    .winner-highlights-line {
+      font-size: 14px;
+      line-height: 1.7;
+      color: var(--text);
+      padding: 4px 0;
+    }
+    .winner-highlights-line + .winner-highlights-line {
+      border-top: 1px dashed rgba(255,255,255,0.08);
+    }
+    .winner-reveal-list {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .winner-actions {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+    .winner-actions .btn { padding: 10px 22px; font-size: 14px; }
+
+    /* 距离标签 */
+    .distance-tag {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 999px;
+      font-size: 11px;
+      font-weight: 700;
+      background: rgba(56, 189, 248, 0.18);
+      color: #38bdf8;
+      letter-spacing: 0.4px;
+      margin-left: 6px;
+    }
+    .distance-tag.out-of-range { background: rgba(231, 76, 60, 0.2); color: #ff6b6b; }
+    .distance-tag.self { background: rgba(243, 156, 18, 0.2); color: var(--primary); }
+
+    /* 弹窗 */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0, 0, 0, 0.85);
+      z-index: 200;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    
+    .modal-overlay.show {
+      display: flex;
+      opacity: 1;
+    }
+    
+    .modal-box {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 16px;
+      max-width: 280px;
+      width: 90%;
+      position: relative;
+      transform: scale(0.9);
+      transition: transform 0.2s;
+    }
+    /* 球员介绍弹窗：左图右文，加宽 */
+    .modal-box.skill-layout {
+      max-width: 720px;
+      width: 92%;
+      padding: 14px 18px;
+      display: grid;
+      grid-template-columns: 200px 1fr;
+      gap: 16px;
+    }
+    .modal-box.skill-layout .modal-image,
+    .modal-box.skill-layout .modal-image-fallback {
+      width: 200px;
+      height: 240px;
+      margin: 0;
+      grid-row: 1 / span 3;
+      align-self: start;
+    }
+    .modal-box.skill-layout .modal-name {
+      margin: 0;
+      grid-column: 2;
+    }
+    .modal-box.skill-layout .modal-suit {
+      margin: 2px 0 6px;
+      grid-column: 2;
+    }
+    .modal-box.skill-layout .modal-desc {
+      grid-column: 2;
+      max-height: 60vh;
+      overflow-y: auto;
+      line-height: 1.6;
+      padding: 0;
+    }
+    
+    .modal-overlay.show .modal-box {
+      transform: scale(1);
+    }
+    
+    .modal-close {
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      width: 26px;
+      height: 26px;
+      border: none;
+      background: var(--bg-secondary);
+      border-radius: 50%;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 14px;
+    }
+    
+    .modal-close:hover {
+      background: var(--danger);
+      color: #fff;
+    }
+    
+    .modal-image {
+      width: 100%;
+      height: 150px;
+      object-fit: contain;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .modal-name {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+    }
+    
+    .modal-suit {
+      font-size: 12px;
+      color: var(--text-muted);
+      margin-bottom: 8px;
+    }
+    
+    .modal-desc {
+      font-size: 13.5px;
+      line-height: 1.85;
+      white-space: pre-line;
+      padding: 4px 2px;
+    }
+    .modal-desc b { color: var(--primary); }
+    
+    /* 确认弹窗 */
+    .confirm-modal {
+      text-align: center;
+    }
+    
+    .confirm-modal h3 {
+      font-size: 16px;
+      margin-bottom: 12px;
+    }
+    
+    .confirm-btns {
+      display: flex;
+      gap: 8px;
+      margin-top: 16px;
+    }
+    
+    .confirm-btns .btn {
+      padding: 8px 16px;
+    }
+    
+    /* 设置 */
+    .settings-panel {
+      position: fixed;
+      top: 0;
+      right: -260px;
+      width: 240px;
+      height: 100vh;
+      background: var(--bg-secondary);
+      border-left: 1px solid var(--border);
+      z-index: 150;
+      transition: right 0.3s;
+      padding: 16px;
+    }
+    
+    .settings-panel.open { right: 0; }
+    
+    .settings-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: var(--primary);
+    }
+    
+    .settings-close {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      width: 24px;
+      height: 24px;
+      border: none;
+      background: var(--bg-card);
+      border-radius: 4px;
+      color: var(--text);
+      cursor: pointer;
+    }
+    
+    .settings-version {
+      position: absolute;
+      bottom: 16px;
+      left: 16px;
+      right: 16px;
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    
+    /* 新手引导 */
+    .guide-overlay {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.9);
+      z-index: 300;
+      display: none;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    .guide-overlay.show {
+      display: flex;
+    }
+    
+    .guide-box {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 20px;
+      max-width: 320px;
+      text-align: center;
+    }
+    
+    .guide-box h3 {
+      color: var(--primary);
+      margin-bottom: 12px;
+    }
+    
+    .guide-box p {
+      font-size: 13px;
+      line-height: 1.6;
+      margin-bottom: 16px;
+    }
+    
+    .guide-step {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      margin-bottom: 12px;
+    }
+    
+    .guide-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+    
+    .guide-dot.active {
+      background: var(--primary);
+    }
+    
+    /* 底部 */
+    .footer {
+      text-align: center;
+      padding: 4px;
+      font-size: 9px;
+      color: var(--text-muted);
+    }
+    
+    /* 响应式 */
+    @media (min-width: 600px) {
+      .players-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+      }
+      
+      .player-card {
+        padding: 12px;
+      }
+    }
+    
+    @media (min-width: 900px) {
+      .app {
+        margin: 0;
+        width: 100vw;
+        max-width: none;
+      }
+
+      .main {
+        flex-direction: row;
+        padding: 0.3vw;
+        gap: 0.4vw;
+      }
+
+      .players-grid {
+        flex: 1;
+      }
+
+      .bottom-panel {
+        width: 24%;
+        min-width: 18rem;
+        max-width: 40%;
+        flex-shrink: 0;
+      }
+
+      /* 人数自适应：人多时玩家区拿大头，日志面板比例适度变化 */
+      .app[data-players="4"] .bottom-panel { width: 18%; }
+      .app[data-players="5"] .bottom-panel { width: 19%; }
+      .app[data-players="6"] .bottom-panel { width: 21%; }
+      .app[data-players="7"] .bottom-panel { width: 22%; }
+      .app[data-players="8"] .bottom-panel { width: 24%; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <!-- 暂停遮罩 -->
+    <div class="pause-overlay" id="pause-overlay" onclick="game.togglePause()">
+      <div class="pause-box" onclick="event.stopPropagation()">
+        <div class="pause-text">⏸️ 游戏暂停</div>
+        <button class="btn btn-primary" onclick="game.togglePause()" style="padding:12px 40px;font-size:16px;">▶️ 继续游戏</button>
+        <div class="pause-hint" style="margin-top:12px;">或点击空白区域继续</div>
+      </div>
+    </div>
+    
+    <!-- 顶部 -->
+    <header class="header">
+      <div class="logo">
+        <svg class="logo-svg" width="40" height="40" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg" aria-label="NBA Kill">
+          <rect width="50" height="100" rx="12" fill="#1d428a"/>
+          <rect x="50" width="50" height="100" rx="12" fill="#c8102e"/>
+          <g fill="#fff" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="48" cy="14" r="4.5"/>
+            <path d="M43 20 Q42 36 45 46 L52 46 Q56 36 55 20 Z" stroke-width="0.5"/>
+            <path d="M55 22 L68 27 L73 35" fill="none" stroke-width="4.5"/>
+            <path d="M43 22 L34 32 L32 38" fill="none" stroke-width="4.5"/>
+            <path d="M52 46 L56 56 L52 64" fill="none" stroke-width="5"/>
+            <path d="M45 46 L40 56 L40 62" fill="none" stroke-width="5"/>
+          </g>
+          <circle cx="74" cy="36" r="4" fill="#f97316" stroke="#1a1a2e" stroke-width="0.6"/>
+          <text x="50" y="92" text-anchor="middle" font-family="Georgia, 'Times New Roman', serif" font-style="italic" font-size="22" font-weight="900" fill="#fde047" stroke="#0c0c1c" stroke-width="2.2" paint-order="stroke fill">NBA</text>
+        </svg>
+        <h1>NBA Kill</h1>
+      </div>
+      <div class="header-right">
+        <div class="deck-info">
+          <span class="deck-stat" title="牌堆剩余张数">📦<strong id="deck-remaining">0</strong></span>
+          <span class="deck-stat" title="弃牌堆张数">🗑️<strong id="discard-pile">0</strong></span>
+        </div>
+        <span class="status-badge status-waiting" id="game-status">等待</span>
+        <button class="header-btn" onclick="game.showRulesModal()" title="游戏规则">
+          <span class="header-btn-icon">📖</span><span class="header-btn-label">规则</span>
+        </button>
+        <button class="header-btn" onclick="game.showInfoModal()" title="作者信息 / 致谢">
+          <span class="header-btn-icon">ℹ️</span><span class="header-btn-label">信息</span>
+        </button>
+        <button class="header-btn" onclick="game.toggleSettings()" title="设置">
+          <span class="header-btn-icon">⚙️</span><span class="header-btn-label">设置</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- 主内容 -->
+    <main class="main">
+      <div style="flex:1;display:flex;flex-direction:column;gap:8px;">
+        <!-- 回合信息栏 -->
+        <div class="turn-bar">
+          <div class="turn-info">
+            <span class="turn-number" id="turn-display">准备开始</span>
+            <span class="phase-tag" id="phase-tag" style="display:none;"></span>
+          </div>
+        </div>
+
+        <!-- 目标选择提示 -->
+        <div class="target-banner" id="target-banner" style="display:none;">
+          <span class="target-banner-icon">🎯</span>
+          <span class="target-banner-text" id="target-banner-text">请选择目标球员</span>
+          <button class="target-banner-cancel" onclick="game.cancelTargetSelection()">取消</button>
+        </div>
+
+        <!-- 玩家区域 -->
+        <div class="game-area">
+          <div class="opponents-area" id="opponents-area"></div>
+          <div class="human-section">
+            <div class="human-card-wrap" id="human-card-wrap"></div>
+            <div class="human-hand-wrap">
+              <div class="human-hand" id="human-hand"></div>
+              <div class="human-actions" id="human-actions"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 底部面板 -->
+      <aside class="bottom-panel">
+        <div class="control-bar">
+          <select class="player-count-select" id="player-count-select" title="选择本局人数">
+            <option value="4">4 人</option>
+            <option value="5">5 人</option>
+            <option value="6">6 人</option>
+            <option value="7">7 人</option>
+            <option value="8">8 人</option>
+          </select>
+          <button class="btn btn-primary" id="btn-start" onclick="game.confirmRestart()">🎲 开始比赛</button>
+          <button class="btn btn-secondary" id="btn-debug" onclick="game.toggleDebug()" title="调试视图：显示所有身份">🐞 调试</button>
+          <button class="btn btn-secondary" id="btn-pause" onclick="game.togglePause()" style="display:none;">⏸️</button>
+        </div>
+        
+        <div class="log-panel">
+          <div class="log-header" onclick="game.toggleLog()">
+            <span>📜 游戏日志 <span id="log-count" style="color:var(--primary)"></span></span>
+            <span id="log-toggle">展开 ▼</span>
+          </div>
+          <div class="log-content" id="log-content">
+            <div class="log-content-inner" id="log-inner"></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+    
+    <footer class="footer">© 2026 NBA Kill</footer>
+  </div>
+  
+  <!-- 卡牌详情弹窗 -->
+  <div class="modal-overlay" id="card-modal" onclick="game.closeModal(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+      <button class="modal-close" onclick="game.closeModal()">✕</button>
+      <img class="modal-image" id="modal-image" src="" alt="">
+      <div class="modal-name" id="modal-name"></div>
+      <div class="modal-suit" id="modal-suit"></div>
+      <div class="modal-desc" id="modal-desc"></div>
+    </div>
+  </div>
+
+  <!-- 挑牌弹窗：摘板 / 抢断 -->
+  <div class="modal-overlay card-pick-modal" id="card-pick-modal" onclick="game.cancelCardPick(event)">
+    <div class="card-pick-box" onclick="event.stopPropagation()">
+      <div class="card-pick-header">
+        <span class="card-pick-title" id="card-pick-title">选择要拿走的牌</span>
+        <button class="card-pick-cancel" onclick="game.cancelCardPick()">取消 ✕</button>
+      </div>
+      <div class="card-pick-body" id="card-pick-body"></div>
+      <div class="card-pick-hint">点一张牌确认</div>
+    </div>
+  </div>
+
+  <!-- 胜利弹窗 -->
+  <div class="modal-overlay winner-modal" id="winner-modal">
+    <div class="winner-box">
+      <div class="winner-emblem">🏆</div>
+      <div class="winner-title" id="winner-title">游戏结束</div>
+      <div class="winner-subtitle" id="winner-subtitle"></div>
+      <div class="winner-reveal-title">本局身份揭示</div>
+      <div class="winner-reveal" id="winner-reveal"></div>
+      <div class="winner-actions">
+        <button class="btn btn-primary" onclick="game.confirmRestart(); game.renderer.hideWinnerModal();">🔁 再来一局</button>
+        <button class="btn btn-secondary" onclick="game.renderer.hideWinnerModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 信息弹窗（作者 / 致谢） -->
+  <div class="modal-overlay info-modal" id="info-modal" onclick="game.hideInfoModal(event)">
+    <div class="info-box" onclick="event.stopPropagation()">
+      <div class="info-header">
+        <span class="info-title">ℹ️ 关于 NBA Kill</span>
+        <button class="card-pick-cancel" onclick="game.hideInfoModal()">关闭 ✕</button>
+      </div>
+      <div class="info-body">
+        <div class="info-row">
+          <span class="info-label">作者</span>
+          <span class="info-value"><a href="mailto:chaodewen@gmail.com">chaodewen@gmail.com</a></span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">简历</span>
+          <span class="info-value">2011-2015 赛季曾在顶级篮球联盟 <b>IBA</b> 场均 30 分 + 10 助攻 + 2 抢断，荣膺 MVP；2015 年总决赛因肘击对手面部被罚下场，遗憾结束生涯。</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">致谢</span>
+          <span class="info-value">感谢 <b>IBA</b> 给予的篮球启蒙。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 游戏规则弹窗 -->
+  <div class="modal-overlay rules-modal" id="rules-modal" onclick="game.hideRulesModal(event)">
+    <div class="rules-box" onclick="event.stopPropagation()">
+      <div class="rules-header">
+        <span class="rules-title">📖 NBA Kill 游戏规则</span>
+        <button class="card-pick-cancel" onclick="game.hideRulesModal()">关闭 ✕</button>
+      </div>
+      <div class="rules-body">
+        <h4>🎯 胜利目标（核心身份制）</h4>
+        <p><b>核心</b>（明置，1 名）：与<b>队友</b>击败所有<b>对手</b>和<b>独狼</b>。<br>
+        <b>队友</b>：保护核心 + 击败所有对手和独狼。<br>
+        <b>对手</b>：击败核心。<br>
+        <b>独狼</b>：先清掉对手与队友，最后单挑击败核心。</p>
+
+        <h4>🏟️ 球场位置（势力归属，同位置协同加成）</h4>
+        <p>每名球员属于以下三个位置之一，<b>同位置队友存活时获得协同加成</b>：</p>
+        <ul>
+          <li>🛡️ <b style="color:#16a34a">禁区铁壁</b>（内线 / 中锋·大前锋）：<br>
+            <b>禁区轮转</b>—— 同位置队友存活时，你<b>受到的伤害 -1</b>（最低 0）<br>
+            <small>包含：Shaq · Tim Duncan · Kevin Garnett · Dwight Howard</small></li>
+          <li>🎯 <b style="color:#2f80ed">后场操盘</b>（后卫 / 控卫·分卫）：<br>
+            <b>挡拆传切</b>—— 同位置队友存活时，你的<b>摸牌阶段额外摸 1 张</b><br>
+            <small>包含：Kobe · Curry · Wade · Chris Paul · Harden · Ray Allen · Manu Ginobili</small></li>
+          <li>⚡ <b style="color:#e11d48">锋线尖刃</b>（锋线 / 小前锋·得分前锋）：<br>
+            <b>前后夹击</b>—— 同位置队友存活时，你"投"造成伤害后<b>额外弃置目标 1 张牌</b><br>
+            <small>包含：LeBron · Kevin Durant · Kawhi Leonard · Shane Battier · Andre Iguodala</small></li>
+        </ul>
+
+        <h4>🃏 基础牌</h4>
+        <p>
+          <b>投</b>（杀）：对攻击范围内一名球员造成 1 点体能伤害，每回合限 1 张（除非装备<b>无限开火权</b>或技能放开）。<br>
+          <b>盖</b>（闪）：响应别人的【投】，抵消这次进攻。<br>
+          <b>佳得乐</b>（桃）：回复 1 点体能；濒死时也可救命。<br>
+          <b>封闭针</b>（酒）：本回合下一张【投】伤害 +1；濒死时可自救 1 点。
+        </p>
+
+        <h4>🎴 战术牌（部分）</h4>
+        <p>
+          <b>战术板</b>（无中生有）：摸 2 张。<br>
+          <b>抢断</b>（顺手牵羊）：拿距离 1 内对手区域内一张牌（NBA：断球）。<br>
+          <b>迫使失误</b>（过河拆桥）：弃对方区域内一张牌（NBA：施压逼迫对手失误丢球）。<br>
+          <b>单挑</b>（决斗）：与目标轮流出【投】，先不出者受伤。<br>
+          <b>三分雨</b>（万箭齐发）：所有人需出【盖】或受 1 伤。<br>
+          <b>全场紧逼</b>（南蛮入侵）：所有人需出【投】或受 1 伤。<br>
+          <b>官方暂停</b>（桃园结义）：全员回血 1 点。<br>
+          <b>裁判回看</b>（无懈可击）：抵消一张战术牌的效果。<br>
+          <b>犯规麻烦</b>（乐不思蜀，延时）：判定不为♥ 则跳过出牌阶段。
+        </p>
+
+        <h4>👟 装备战靴</h4>
+        <p>
+          <b>武器</b>：决定攻击范围（默认 1）。例：<b>错位单打 范围 4</b>、<b>无限开火权 范围 1</b> 但可投多张。<br>
+          <b>防具</b>：<b>联防体系</b>（红色判定视为盖）、<b>护筐屏障</b>（黑色【投】对你无效）。<br>
+          <b>Air Jordan 11</b>（+1 防守战靴）：其他角色计算与你的距离时 +1<br>
+          <b>Kobe 6 Protro</b>（-1 进攻战靴）：你计算与其他角色的距离时 -1
+        </p>
+
+        <h4>🎮 操作</h4>
+        <ul>
+          <li><b>点</b>手牌使用；<b>右键</b>查看牌面详情</li>
+          <li>选投/单挑/抢断/迫使失误后，目标球员上会有<b>橙色光圈 + 🎯</b>，hover 上去**红色锁定动画**，点对方完成出牌；再点该牌取消</li>
+          <li>装备 / 战术板 / 三分雨 等会弹出<b>使用确认</b>，先看完描述再确定</li>
+          <li>不在攻击范围的玩家点击会<b>红色摇晃</b>并提示距离</li>
+          <li>右下日志最新条目从顶部进入有<b>滑入闪烁动画</b></li>
+          <li>球员卡名字旁边有<b>位置标</b>（绿/蓝/红）和<b>身份标</b>（金/蓝/红/紫渐变），距离标告诉你能不能投到</li>
+          <li>对手手牌只显示<b>叠起来的卡背 + 张数</b>，不能透视</li>
+        </ul>
+
+        <h4>🌟 NBA 球员技能（已接通）</h4>
+        <p>
+          LeBron <b>组织</b>、Tim Duncan <b>基本功</b>、Wade <b>突破</b>、Kawhi <b>死亡缠绕</b>、Curry <b>射程</b>、Shaq <b>禁区</b>、Howard <b>盖帽</b>、Battier <b>底角三分</b>、Garnett <b>怒吼</b>、Kobe <b>曼巴</b>、Harden <b>造犯</b>、KD <b>错位</b>、Duncan <b>护框</b>。
+        </p>
+        <p style="color: var(--text-muted); font-size: 12px;">
+          点球员卡上的【技能名】可以查看每名球员的完整技能描述。
+        </p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 确认弹窗 -->
+  <div class="modal-overlay" id="confirm-modal">
+    <div class="modal-box confirm-modal">
+      <h3 id="confirm-title">确定要重新开始吗？</h3>
+      <p id="confirm-desc">当前游戏进度将丢失</p>
+      <div class="confirm-btns">
+        <button class="btn btn-secondary" onclick="game.cancelConfirm()">取消</button>
+        <button class="btn btn-primary" id="confirm-btn">确定</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 新手引导 -->
+  <div class="guide-overlay" id="guide-overlay">
+    <div class="guide-box">
+      <h3>🎮 欢迎来到NBA Kill</h3>
+      <div class="guide-step" id="guide-dots"></div>
+      <p id="guide-text"></p>
+      <div class="confirm-btns">
+        <button class="btn btn-secondary" onclick="game.skipGuide()">跳过</button>
+        <button class="btn btn-primary" id="guide-next-btn" onclick="game.nextGuide()">下一步</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- 设置面板 -->
+  <div class="settings-panel" id="settings-panel">
+    <button class="settings-close" onclick="game.toggleSettings()">✕</button>
+    <div class="settings-title">⚙️ 设置</div>
+    <div class="settings-version">
+      <p>v0.2.0 · 16球员 · 108卡牌</p>
+      <p id="build-timestamp"></p>
+    </div>
+  </div>
+  
+  <script src="game.bundle.js?v=1780750862222"></script>
+</body>
+</html>
