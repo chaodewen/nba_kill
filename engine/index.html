@@ -453,9 +453,21 @@
     
     .player-header {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 10px;
       margin-bottom: 8px;
+    }
+
+    /* 头像 + 位置标签纵向叠放，节省 player-name-row 横向空间 */
+    .player-avatar-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+    .player-avatar-wrap .position-tag {
+      margin: 0;
     }
     
     .player-avatar {
@@ -687,7 +699,7 @@
     }
 
     /* 对手卡片紧凑模式：缩小头像和间距，给底部手牌堆腾空间 */
-    .opp-seat .player-card { padding: 0.4em 0.55em 44px; gap: 0.2em; position: relative; }
+    .opp-seat .player-card { padding: 0.4em 0.55em; gap: 0.2em; position: relative; }
     .opp-seat .player-header { gap: 7px; margin-bottom: 4px; }
     .opp-seat .player-avatar { width: 36px; height: 36px; font-size: 16px; border-width: 2px; }
     .opp-seat .hp-display { margin-bottom: 2px; font-size: 15px; }
@@ -695,13 +707,13 @@
     .opp-seat .equipment-bar { gap: 3px; }
     .opp-seat .player-skill { font-size: 11px; }
     .opp-seat .player-name { font-size: 13px; }
-    /* 手牌区固定到卡片底部 38px 高度，居中显示 */
+    /* 手牌区按比例固定在卡片下半区，离底边留 18% 不贴边 */
     .opp-seat .hand-section {
       position: absolute;
-      left: 6px;
-      right: 6px;
-      bottom: 4px;
-      height: 38px;
+      left: 4%;
+      right: 4%;
+      bottom: 18%;
+      height: 26%;
       margin-top: 0;
       display: flex;
       align-items: center;

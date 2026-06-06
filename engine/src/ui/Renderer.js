@@ -146,9 +146,14 @@ export class Renderer {
     const photoTransform = player.character.photoTransform || '';
     const imgStyle = photoTransform ? `style="transform: ${photoTransform}"` : '';
     const skillClick = `event.stopPropagation(); game.showSkillModal('${player.character.key}')`;
-    const avatarHtml = avatarUrl
+    const avatarInner = avatarUrl
       ? `<div class="player-avatar" onclick="${skillClick}" style="cursor:pointer"><img class="player-avatar-img" src="${avatarUrl}" ${imgStyle} alt="${player.character.name}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span class="avatar-fallback" style="display:none">${initial}</span></div>`
       : `<div class="player-avatar" onclick="${skillClick}" style="cursor:pointer"><span class="avatar-fallback" style="display:flex">${initial}</span></div>`;
+    const avatarHtml = `
+      <div class="player-avatar-wrap">
+        ${avatarInner}
+        <span class="position-tag position-${position.key || 'unknown'}" title="位置：${position.name}\n协同：${position.synergy}">${position.short || position.name}</span>
+      </div>`;
 
     // 状态图标
     let statusHtml = '';
@@ -174,7 +179,6 @@ export class Renderer {
         <div class="player-info">
           <div class="player-name-row">
             <span class="player-name" onclick="event.stopPropagation(); game.showSkillModal('${player.character.key}')" style="cursor:pointer">${player.character.name}</span>
-            <span class="position-tag position-${position.key || 'unknown'}" title="位置：${position.name}\n协同：${position.synergy}">${position.short || position.name}</span>
             <span class="identity-tag identity-${identity.key}" title="身份目标：${identity.goal}">${identity.name}</span>
             <span class="distance-tag" id="dist-${player.index}"></span>
           </div>
