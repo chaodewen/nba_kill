@@ -163,8 +163,13 @@ export class Game {
       const cards = this.deck.drawMultiple(4);
       player.drawCards(cards);
       this.renderer.updatePlayer(player);
-      const cardNames = cards.map(c => `【${c.name}】`).join(' ');
-      this.renderer.addLog(`${player.character.name} 初始手牌：${cardNames}`, 'draw');
+      // 普通模式下不暴露 AI 的手牌内容；只对自己 / 调试模式展示具体牌名
+      if (player.isHuman || this.debugMode) {
+        const cardNames = cards.map(c => `【${c.name}】`).join(' ');
+        this.renderer.addLog(`${player.character.name} 初始手牌：${cardNames}`, 'draw');
+      } else {
+        this.renderer.addLog(`${player.character.name} 拿到 4 张初始手牌`, 'draw');
+      }
     });
 
     this.gameState = 'playing';
@@ -364,8 +369,12 @@ export class Game {
     player.drawCards(cards);
     this.renderer.updatePlayer(player);
     this.renderer.updateUI(this);
-    const cardNames = cards.map(c => `【${c.name}】`).join(' ');
-    this.renderer.addLog(`摸了 ${count} 张牌：${cardNames}`, 'draw');
+    if (player.isHuman || this.debugMode) {
+      const cardNames = cards.map(c => `【${c.name}】`).join(' ');
+      this.renderer.addLog(`摸了 ${count} 张牌：${cardNames}`, 'draw');
+    } else {
+      this.renderer.addLog(`${player.character.name} 摸了 ${count} 张牌`, 'draw');
+    }
     
     this.playPhase(player);
   }
@@ -925,8 +934,12 @@ export class Game {
     const cards = this.deck.drawMultiple(2);
     player.drawCards(cards);
     this.renderer.updatePlayer(player);
-    const cardNames = cards.map(c => `【${c.name}】`).join(' ');
-    this.renderer.addLog(`摸了 2 张牌：${cardNames}`, 'draw');
+    if (player.isHuman || this.debugMode) {
+      const cardNames = cards.map(c => `【${c.name}】`).join(' ');
+      this.renderer.addLog(`摸了 2 张牌：${cardNames}`, 'draw');
+    } else {
+      this.renderer.addLog(`${player.character.name} 摸了 2 张牌`, 'draw');
+    }
     this.continueAfterCard(player, 400);
   }
 
@@ -1682,7 +1695,9 @@ export class Game {
       btn.textContent = this.debugMode ? '🐞 调试中' : '🐞 调试';
       btn.classList.toggle('active', this.debugMode);
     }
-    this.renderer.addLog(this.debugMode ? '🐞 调试视图：所有身份可见' : '🐞 已关闭调试视图', 'system');
+    // 重新渲染全部玩家手牌（对手的卡牌正反面切换）
+    this.players?.forEach(p => this.renderer?.renderHandCards?.(p));
+    this.renderer.addLog(this.debugMode ? '🐞 调试视图：所有身份与手牌可见' : '🐞 已关闭调试视图', 'system');
   }
 
   toggleSettings() {

@@ -228,8 +228,10 @@ export class Renderer {
     const container = document.getElementById(containerId);
     if (!container || !player.handCards) return;
 
-    // 非人类玩家：只显示叠起来的卡背 + 张数（隐藏具体牌）
-    if (!player.isHuman) {
+    // 非人类玩家在普通模式下只显示叠起来的卡背 + 张数（隐藏具体牌）；
+    // 调试模式下与自己一样展示牌正面，便于排查
+    const debugReveal = !!this.game?.debugMode;
+    if (!player.isHuman && !debugReveal) {
       const n = player.handCards.length;
       if (n === 0) {
         container.innerHTML = '<div class="hand-empty">无手牌</div>';
@@ -265,8 +267,9 @@ export class Renderer {
       const hint = player.isHuman ? '点击使用｜右键查看详情' : '点击查看详情';
       const safeDesc = (card.description || '').replace(/"/g, '&quot;');
       const nativeTitle = `【${card.name}】\n\n${safeDesc}\n\n（${hint}）`;
+      const debugCls = player.isHuman ? '' : 'debug-reveal';
       return `
-        <div class="mini-card ${disabled ? 'disabled' : ''} ${selected ? 'selected' : ''}"
+        <div class="mini-card ${debugCls} ${disabled ? 'disabled' : ''} ${selected ? 'selected' : ''}"
              style="--card-color:${card.color}"
              title="${nativeTitle}"
              onclick="${clickHandler}"
