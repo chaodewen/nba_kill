@@ -7,6 +7,7 @@ import { Player } from './Player';
 import { Deck } from './Deck';
 import { SkillSystem } from './Skills';
 import { Renderer } from '../ui/Renderer';
+import { SoundFx } from '../ui/SoundFx';
 import {
   calculateDistance, canAttack, getShaDamage, getRequiredShanCount,
   checkGameOver, getAlivePlayers, getNextAlivePlayer,
@@ -44,10 +45,13 @@ export class Game {
   init() {
     // 初始化牌堆
     this.deck = new Deck();
-    
+
     // 初始化技能系统
     this.skills = new SkillSystem(this);
-    
+
+    // 初始化音效系统
+    this.fx = new SoundFx();
+
     // 初始化渲染器并缓存元素
     this.renderer = new Renderer(this);
     this.renderer.cacheElements();
@@ -521,6 +525,7 @@ export class Game {
       : card.type === 'armor' ? '#3498db'
       : '#9b59b6';
     this.renderer.flashCardPlay(player, card.name, equipColor);
+    this.fx?.play?.('equip');
 
     this.continueAfterCard(player, 400);
   }
@@ -807,6 +812,7 @@ export class Game {
   handleSha(player, target, card) {
     this.renderer.addLog(`⚔️ ${player.character.name} 对 ${target.character.name} 使用【投】`, 'play');
     this.renderer.flashCardPlay(player, '投', '#e74c3c');
+    this.fx?.play?.('sha');
 
     // 触发：被投（FMVP 等可能直接取消此投）
     const tbsResult = this.skills.checkTrigger(target, 'targeted_by_sha', { target, source: player, card });
@@ -919,6 +925,7 @@ export class Game {
         }
         this.renderer.addLog(`🛡️ ${target.character.name} 使用 ${shanCount} 张【盖】盖避成功`, 'normal');
         this.renderer.flashCardPlay(target, '盖', '#3498db');
+        this.fx?.play?.('shan');
         this.renderer.updatePlayer(target);
         finishDodged();
       } else {
@@ -948,6 +955,7 @@ export class Game {
         target.takeDamage(damage);
         this.renderer.updatePlayer(target);
         this.renderer.flashHpDelta?.(target, -damage);
+        this.fx?.play?.('hit');
         this.renderer.addLog(`💥 ${target.character.name} 受到 ${damage} 点伤害，剩余 ${target.hp} 点体能`, 'play');
 
         this.handleDamageSkills(player, target, card);
@@ -976,7 +984,10 @@ export class Game {
     target.heal(1);
     const delta = target.hp - before;
     this.renderer.updatePlayer(target);
-    if (delta > 0) this.renderer.flashHpDelta?.(target, delta);
+    if (delta > 0) {
+      this.renderer.flashHpDelta?.(target, delta);
+      this.fx?.play?.('tao');
+    }
     this.renderer.addLog(`❤️ 使用【佳得乐】回复 1 点体能`, 'heal');
     this.renderer.flashCardPlay(target, '佳得乐', '#2ecc71');
     this.continueAfterCard(player, 400);
@@ -1723,6 +1734,7 @@ export class Game {
 
     // 没人救 → 正式阵亡
     this.renderer.addLog(`💀 ${player.character.name} 阵亡！`, 'death');
+    this.fx?.play?.('death');
 
     // 记录精彩镜头：击杀
     if (this.highlights) {
@@ -1883,6 +1895,7 @@ export class Game {
   gameOver(result) {
     this.gameState = 'ended';
     this.stopPlayQueue();
+    this.fx?.play?.('win');
 
     this.renderer.updateButtons('ended');
     this.renderer.updateUI(this);
@@ -1964,6 +1977,15 @@ export class Game {
 
   setTheme(theme) {
     this.renderer.setTheme(theme);
+  }
+
+  // 音效开关
+  setSound(on) {
+    this.fx?.setEnabled?.(on);
+    document.querySelectorAll('.settings-option[data-sound]').forEach(b => {
+      b.classList.toggle('active', (b.dataset.sound === 'on') === !!on);
+    });
+    this.renderer?.addLog?.(on ? '🔊 音效已开' : '🔇 音效已关', 'system');
   }
 
   toggleLog() {

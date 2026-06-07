@@ -2203,6 +2203,15 @@
       <div class="settings-hint">每个动作和日志的展示时长。极速适合 review 节奏，标准是默认。</div>
     </div>
 
+    <div class="settings-section">
+      <div class="settings-section-title">🔊 音效</div>
+      <div class="settings-options" id="setting-sound-options">
+        <button class="settings-option active" data-sound="on" onclick="game.setSound(true)">🔊 开</button>
+        <button class="settings-option" data-sound="off" onclick="game.setSound(false)">🔇 关</button>
+      </div>
+      <div class="settings-hint">出投/盖/佳得乐/受伤/装备/阵亡/获胜 等关键动作的提示音（合成简短音色，无外部资源）。</div>
+    </div>
+
     <div class="settings-version">
       <p>v0.2.0 · 16 球员 · 108 卡牌</p>
       <p id="build-timestamp"></p>

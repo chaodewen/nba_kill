@@ -644,6 +644,7 @@ export class Renderer {
       card.classList.add('flash-invalid');
       setTimeout(() => card.classList.remove('flash-invalid'), 480);
     }
+    this.game?.fx?.play?.('reject');
     if (reason) this.addLog(`⛔ ${reason}`, 'normal');
   }
 
@@ -656,6 +657,7 @@ export class Renderer {
       card.classList.add('flash-reject');
       setTimeout(() => card.classList.remove('flash-reject'), 600);
     }
+    this.game?.fx?.play?.('reject');
     if (reason) this.addLog(`🚫 ${reason}`, 'normal');
   }
 
