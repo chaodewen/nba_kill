@@ -147,12 +147,13 @@ export class Renderer {
   // 手机竖屏圆桌布局：人在左边圈上，对手分布上/下两排，右边空出留给牌堆
   // 顺时针顺序：human (左) → 上排 L→R → 右边折返 → 下排 R→L → 回到 human
   static getMobileSeatLayout(N, seat) {
+    // bot 行的 total 强制对齐 top 行，让底排从最左开始按列排，跟上排前几列竖直对齐
     const M = {
-      4: { 0: ['humanleft'], 1: ['top', 0, 2], 2: ['top', 1, 2], 3: ['bot', 0, 1] },
+      4: { 0: ['humanleft'], 1: ['top', 0, 2], 2: ['top', 1, 2], 3: ['bot', 0, 2] },
       5: { 0: ['humanleft'], 1: ['top', 0, 2], 2: ['top', 1, 2], 3: ['bot', 1, 2], 4: ['bot', 0, 2] },
-      6: { 0: ['humanleft'], 1: ['top', 0, 3], 2: ['top', 1, 3], 3: ['top', 2, 3], 4: ['bot', 1, 2], 5: ['bot', 0, 2] },
+      6: { 0: ['humanleft'], 1: ['top', 0, 3], 2: ['top', 1, 3], 3: ['top', 2, 3], 4: ['bot', 1, 3], 5: ['bot', 0, 3] },
       7: { 0: ['humanleft'], 1: ['top', 0, 3], 2: ['top', 1, 3], 3: ['top', 2, 3], 4: ['bot', 2, 3], 5: ['bot', 1, 3], 6: ['bot', 0, 3] },
-      8: { 0: ['humanleft'], 1: ['top', 0, 4], 2: ['top', 1, 4], 3: ['top', 2, 4], 4: ['top', 3, 4], 5: ['bot', 2, 3], 6: ['bot', 1, 3], 7: ['bot', 0, 3] },
+      8: { 0: ['humanleft'], 1: ['top', 0, 4], 2: ['top', 1, 4], 3: ['top', 2, 4], 4: ['top', 3, 4], 5: ['bot', 2, 4], 6: ['bot', 1, 4], 7: ['bot', 0, 4] },
     };
     return (M[N] && M[N][seat]) || ['top', 0, 1];
   }
@@ -261,10 +262,14 @@ export class Renderer {
     }
 
     // 人类的手牌 / 快捷按钮渲染到下方独立 tray，不嵌进 player-card 里
+    // 自己卡内"原本手牌位置"用来平铺技能（横向一行）
     const handHtml = !player.isHuman ? `
       <div class="hand-section">
         <div class="hand-cards" id="hand-${player.index}"></div>
-      </div>` : '';
+      </div>` : `
+      <div class="self-skill-bar" title="点击查看技能详情" onclick="event.stopPropagation(); game.showSkillModal('${player.character.key}')">
+        【${player.character.skill}】
+      </div>`;
 
     const displayName = player.character.cnName || player.character.name;
     const isCore = identity.key === 'core';

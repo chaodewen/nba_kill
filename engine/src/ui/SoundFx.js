@@ -1,13 +1,39 @@
 // 音效系统：用 Web Speech API（中文 TTS）报牌名，气势喊出来；用 Web Audio API 给关键事件加底色提示音。
 // 全部 zero-asset：无外部 mp3，浏览器原生合成。
 
-// flashCardPlay 已经通过 cardName 喊牌名；这里只配关键事件
-// hit / heal 类只播 beep，不报中文（受伤动效用音色就够，不必念）
-const DEFAULT_TEXT = {
-  death:  '阵亡!',
-  win:    '胜利!',
-  reject: '无效!',
+// 杨毅风格的解说梗：动作 / 牌 → 中文 NBA 解说语（随机选一句让语音有变化）
+// 文字日志依旧走正式名（"投" / "盖" / "三分雨"），TTS 仅在朗读时改用解说梗
+const COMMENTARY = {
+  sha:    ['投篮！', '强突！', '砍下两分！', '硬解！', '面框单挑！', '压哨出手！'],
+  shan:   ['防守到位！', '挡下了！', '化解！', '没让他得手！'],
+  tao:    ['佳得乐补给！', '回血了！', '体能恢复！', '续上一口！'],
+  juedou: ['硬碰硬！', '刺刀见红！', '一对一单挑！'],
+  wanjian: ['三分雨！哗啦啦！', '外线开火！', '雨下大了！'],
+  nanman:  ['全场紧逼！压迫防守！', '联防绞肉机！'],
+  taoyuan: ['暂停！教练布置战术！', '伤停补时！'],
+  wuzhong: ['排兵布阵！', '战术板！教练写了好东西！'],
+  wuxie:   ['这战术读懂了！直接破解！'],
+  wugu:    ['手感来了！直接两连砍！'],
+  shunshou: ['抢断！漂亮的单防！'],
+  guoheshuang: ['迫使失误！打掉他的牌！'],
+  jiedaosharen: ['借刀杀人！调虎离山！'],
+  lebusishu: ['犯规麻烦！多打少了！'],
+  bingliangcunduan: ['体能危机！跑不起来了！'],
+  shandian: ['伤病隐患！随时可能炸雷！'],
+  end_turn: ['回合结束！换人！', '这一波打完！'],
+  discard: ['弃牌！', '清理手牌！'],
+  hit: ['进了！得手！'],
+  miss: ['打铁！', '没进！'],
+  death: ['伤退！下场！'],
+  win: ['终场哨响！比赛结束！'],
+  reject: ['这个不行！', '没用！'],
 };
+
+function pickCommentary(key) {
+  const arr = COMMENTARY[key];
+  if (!arr || !arr.length) return null;
+  return arr[Math.floor(arr.length * 0.5)]; // 中位句兜底；speakLine 内部会随机
+}
 
 const BEEP_PRESETS = {
   // 通用出牌音色（短促清脆，所有 flashCardPlay 都垫一个）
@@ -125,7 +151,7 @@ export class SoundFx {
   play(name, opts = {}) {
     if (!this.enabled) return;
     // 喊话：opts.text 优先（如卡名），否则用默认事件文本
-    const text = opts.text ?? DEFAULT_TEXT[name];
+    const text = opts.text ?? (COMMENTARY[name] ? COMMENTARY[name][Math.floor(Math.random() * COMMENTARY[name].length)] : null);
     if (text && opts.silent !== true) this.speak(text);
     // beep 底色（音色短暂，不抢风头）
     const preset = BEEP_PRESETS[name];
