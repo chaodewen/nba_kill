@@ -679,12 +679,13 @@
       display: inline-block;
     }
 
-    /* 主力（核心）标记：跟身份 tag 同样的可见规则 */
-    .core-mark { display: none; font-size: 12px; line-height: 1; margin-right: 2px; filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.8)); }
-    .player-card.human-player .core-mark,
-    .player-card.dead .core-mark,
-    body.debug-identity .core-mark {
+    /* 主力（核心）标记：明牌永远可见 */
+    .core-mark {
       display: inline-block;
+      font-size: 12px;
+      line-height: 1;
+      margin-right: 2px;
+      filter: drop-shadow(0 0 3px rgba(251, 191, 36, 0.9));
     }
 
     .identity-core {
@@ -2234,25 +2235,26 @@
       /* 名字 / 身份 tag 浮在卡片上方 — 左上角，完全在框外不重叠 */
       .opp-seat .player-name-row {
         position: absolute !important;
-        top: -22px !important;
-        left: 4px !important;
+        top: -20px !important;
+        left: 0 !important;
         transform: none !important;
-        background: rgba(0, 0, 0, 0.85) !important;
-        border: 1px solid rgba(255, 255, 255, 0.18) !important;
+        background: rgba(0, 0, 0, 0.88) !important;
+        border: 1px solid rgba(255, 255, 255, 0.2) !important;
         border-radius: 8px !important;
         padding: 2px 8px !important;
-        z-index: 8 !important;
+        z-index: 10 !important;
         white-space: nowrap !important;
         gap: 4px !important;
         display: flex !important;
         align-items: center !important;
         flex-wrap: nowrap !important;
-        max-width: calc(100% - 8px) !important;
-        line-height: 1.2 !important;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
+        max-width: calc(100% + 0px) !important;
+        line-height: 1.25 !important;
+        height: 18px !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.45) !important;
       }
-      /* 把座位上方留出 22px 给名字胶囊 */
-      .opp-seat { padding-top: 22px !important; }
+      /* 给座位顶部留出 22px 让名字胶囊有空间，不会被截或重叠到卡内 */
+      .opp-seat.mobile-seat { padding-top: 22px !important; box-sizing: content-box !important; }
       .opp-seat .player-name {
         color: #fff !important;
         font-size: 11px !important;
