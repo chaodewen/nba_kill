@@ -166,23 +166,23 @@ export class Renderer {
 
     if (this.elements.humanCardWrap) this.elements.humanCardWrap.innerHTML = '';
 
-    // 顺时针箭头：椭圆 path + 4 个轻量短箭头标方向
+    // 顺时针箭头：椭圆 path + 4 个最小箭头标方向（仅比虚线点稍大）
     const arrow = document.createElement('div');
     arrow.className = 'mobile-turn-arrow';
     arrow.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
       <defs>
-        <marker id="arrhead-mobile" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
-          <polygon points="0 0, 6 3, 0 6" fill="rgba(243,156,18,0.85)"/>
+        <marker id="arrhead-mobile" markerWidth="3" markerHeight="3" refX="1.5" refY="1.5" orient="auto">
+          <polygon points="0 0, 3 1.5, 0 3" fill="rgba(243,156,18,0.7)"/>
         </marker>
       </defs>
       <!-- 椭圆轨迹（细虚线） -->
       <path d="M 18 50 Q 18 18 50 18 Q 92 18 92 50 Q 92 82 50 82 Q 18 82 18 50"
-            fill="none" stroke="rgba(243,156,18,0.28)" stroke-width="1" stroke-dasharray="2 4"/>
-      <!-- 4 个小箭头（顺时针方向）：上→右 / 右→下 / 下→左 / 左→上 -->
-      <line x1="42" y1="19" x2="48" y2="18" stroke="rgba(243,156,18,0.7)" stroke-width="1.6" marker-end="url(#arrhead-mobile)"/>
-      <line x1="89" y1="42" x2="91" y2="48" stroke="rgba(243,156,18,0.7)" stroke-width="1.6" marker-end="url(#arrhead-mobile)"/>
-      <line x1="58" y1="81" x2="52" y2="82" stroke="rgba(243,156,18,0.7)" stroke-width="1.6" marker-end="url(#arrhead-mobile)"/>
-      <line x1="17" y1="58" x2="18" y2="52" stroke="rgba(243,156,18,0.7)" stroke-width="1.6" marker-end="url(#arrhead-mobile)"/>
+            fill="none" stroke="rgba(243,156,18,0.28)" stroke-width="0.8" stroke-dasharray="2 4"/>
+      <!-- 4 个微型箭头标方向 -->
+      <line x1="46" y1="19" x2="48" y2="18" stroke="rgba(243,156,18,0.6)" stroke-width="0.8" marker-end="url(#arrhead-mobile)"/>
+      <line x1="89" y1="46" x2="91" y2="48" stroke="rgba(243,156,18,0.6)" stroke-width="0.8" marker-end="url(#arrhead-mobile)"/>
+      <line x1="54" y1="81" x2="52" y2="82" stroke="rgba(243,156,18,0.6)" stroke-width="0.8" marker-end="url(#arrhead-mobile)"/>
+      <line x1="17" y1="54" x2="18" y2="52" stroke="rgba(243,156,18,0.6)" stroke-width="0.8" marker-end="url(#arrhead-mobile)"/>
     </svg>`;
     oppArea.appendChild(arrow);
 
@@ -205,7 +205,7 @@ export class Renderer {
       const layout = Renderer.getMobileSeatLayout(N, player.index);
       let x, y;
       if (layout[0] === 'humanleft') {
-        x = 14;
+        x = 19;
         y = 50;
       } else {
         const [row, col, total] = layout;
@@ -266,16 +266,17 @@ export class Renderer {
         <div class="hand-cards" id="hand-${player.index}"></div>
       </div>` : '';
 
+    const displayName = player.character.cnName || player.character.name;
     card.innerHTML = `
+      <span class="distance-tag" id="dist-${player.index}"></span>
       <div class="status-area" id="status-${player.index}">${statusHtml}</div>
 
       <div class="player-header">
         ${avatarHtml}
         <div class="player-info">
           <div class="player-name-row">
-            <span class="player-name" onclick="event.stopPropagation(); game.showSkillModal('${player.character.key}')" style="cursor:pointer">${player.character.name}</span>
+            <span class="player-name" onclick="event.stopPropagation(); game.showSkillModal('${player.character.key}')" style="cursor:pointer">${displayName}</span>
             <span class="identity-tag identity-${identity.key}" title="身份目标：${identity.goal}">${identity.name}</span>
-            <span class="distance-tag" id="dist-${player.index}"></span>
           </div>
           <div class="player-skill" title="点击查看技能详情" onclick="event.stopPropagation(); game.showSkillModal('${player.character.key}')">【${player.character.skill}】</div>
         </div>
@@ -796,6 +797,9 @@ export class Renderer {
       <span class="discard-flash-suit-br" style="color:${suit.color}">${suit.symbol}</span>
     `;
     document.body.appendChild(el);
+
+    // 同步播放底色 beep（discard 也算"动作"，让玩家知道某张牌被弃了）
+    this.game?.fx?.play?.('card_play');
 
     // Phase 1：出现并悬停在源位置 1 秒（读牌时间）
     // Phase 2：1s 后飞向屏幕正中，缩小淡出

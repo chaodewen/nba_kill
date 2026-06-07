@@ -2198,19 +2198,44 @@
       /* （旧的 flex 横滑 opp 区块已被上面 mobile-portrait + :not(.mobile-portrait) 兜底覆盖） */
 
       /* —— 玩家卡内部内聚布局：iPhone 16 ≈ 100x115px 卡内信息分层 —— */
-      .player-card { padding: 3px 4px 2px !important; gap: 1px !important; min-height: 0 !important; overflow: hidden !important; }
+      .player-card { padding: 3px 4px 2px !important; gap: 1px !important; min-height: 0 !important; overflow: visible !important; }
       .opp-seat .player-card { padding: 3px 4px 2px !important; }
 
-      /* 顶部：头像（小）+ 名字 + HP 数字 */
+      /* 名字 / 身份 tag 浮在卡片上方（节省卡内空间） */
+      .opp-seat .player-name-row {
+        position: absolute !important;
+        top: -14px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+        background: rgba(0, 0, 0, 0.78) !important;
+        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        border-radius: 8px !important;
+        padding: 1px 8px !important;
+        z-index: 6 !important;
+        white-space: nowrap !important;
+        gap: 4px !important;
+        display: flex !important;
+        align-items: center !important;
+        flex-wrap: nowrap !important;
+      }
+      .opp-seat .player-name {
+        color: #fff !important;
+        font-size: 11px !important;
+        max-width: none !important;
+        overflow: visible !important;
+        text-overflow: clip !important;
+        white-space: nowrap !important;
+      }
+      .opp-seat .player-info { padding-top: 0 !important; }
+      .opp-seat .player-skill { display: none !important; }
+
+      /* 顶部：头像 + HP（不再有名字占位） */
       .opp-seat .player-header { gap: 4px !important; margin-bottom: 1px !important; align-items: center !important; }
       .opp-seat .player-avatar-wrap { gap: 0 !important; }
       .opp-seat .player-avatar { width: 28px !important; height: 28px !important; font-size: 12px !important; border-width: 1.5px !important; }
       .opp-seat .position-tag { font-size: 8px !important; padding: 0 3px !important; line-height: 1.4 !important; margin-top: 1px !important; }
-      .opp-seat .player-name { font-size: 11px !important; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-      .opp-seat .player-name-row { gap: 3px !important; flex-wrap: nowrap !important; }
       .opp-seat .identity-tag { font-size: 8px !important; padding: 0 4px !important; line-height: 1.4 !important; }
       .opp-seat .distance-tag { font-size: 10px !important; padding: 1px 4px !important; min-width: 14px !important; top: 2px !important; right: 2px !important; line-height: 1.1; font-weight: 800; }
-      .opp-seat .player-skill { display: none !important; }
 
       /* HP 行 */
       .opp-seat .hp-display { font-size: 11px !important; margin-bottom: 0 !important; gap: 1px !important; line-height: 1.1 !important; }
@@ -2250,13 +2275,14 @@
       .opp-seat .hand-back.hand-back-count::after { font-size: 10px !important; }
 
       /* human 自己卡：稍大一些字体 */
+      .opp-seat.seat-human .player-name {
+        font-size: 13px !important;
+      }
       .opp-seat.seat-human .player-avatar { width: 34px !important; height: 34px !important; font-size: 14px !important; }
-      .opp-seat.seat-human .player-name { font-size: 12px !important; max-width: 80px; }
       .opp-seat.seat-human .hp-display { font-size: 12px !important; }
       .opp-seat.seat-human .hp-number { font-size: 15px !important; }
       .opp-seat.seat-human .position-tag { font-size: 9px !important; }
       .opp-seat.seat-human .identity-tag { font-size: 9px !important; }
-      .opp-seat.seat-human .player-skill { display: block !important; font-size: 9px !important; line-height: 1.2 !important; max-height: 22px; overflow: hidden; }
 
       /* —— 屏幕中央弃牌堆迷你化（钉到 game-area 顶部右侧空位，不再挡玩家框） —— */
       .center-discard-stack {
@@ -2618,66 +2644,67 @@
         <b>对手</b>：击败核心。<br>
         <b>独狼</b>：先清掉对手与队友，最后单挑击败核心。</p>
 
-        <h4>🏟️ 球场位置（势力归属，同位置协同加成）</h4>
+        <h4>🏟️ 球场位置（同位置协同加成）</h4>
         <p>每名球员属于以下三个位置之一，<b>同位置队友存活时获得协同加成</b>：</p>
         <ul>
           <li>🛡️ <b style="color:#16a34a">禁区铁壁</b>（内线 / 中锋·大前锋）：<br>
             <b>禁区轮转</b>—— 同位置队友存活时，你<b>受到的伤害 -1</b>（最低 0）<br>
-            <small>包含：Shaq · Tim Duncan · Kevin Garnett · Dwight Howard</small></li>
+            <small>包含：奥尼尔 · 邓肯 · 加内特 · 霍华德</small></li>
           <li>🎯 <b style="color:#2f80ed">后场操盘</b>（后卫 / 控卫·分卫）：<br>
             <b>挡拆传切</b>—— 同位置队友存活时，你的<b>摸牌阶段额外摸 1 张</b><br>
-            <small>包含：Kobe · Curry · Wade · Chris Paul · Harden · Ray Allen · Manu Ginobili</small></li>
+            <small>包含：科比 · 库里 · 韦德 · 保罗 · 哈登 · 雷阿伦 · 吉诺</small></li>
           <li>⚡ <b style="color:#e11d48">锋线尖刃</b>（锋线 / 小前锋·得分前锋）：<br>
-            <b>前后夹击</b>—— 同位置队友存活时，你"投"造成伤害后<b>额外弃置目标 1 张牌</b><br>
-            <small>包含：LeBron · Kevin Durant · Kawhi Leonard · Shane Battier · Andre Iguodala</small></li>
+            <b>前后夹击</b>—— 同位置队友存活时，你「投」造成伤害后<b>额外弃置目标 1 张牌</b><br>
+            <small>包含：詹姆斯 · 杜兰特 · 卡哇伊 · 巴蒂尔 · 伊戈</small></li>
         </ul>
 
         <h4>🃏 基础牌</h4>
         <p>
-          <b>投</b>（杀）：对攻击范围内一名球员造成 1 点体能伤害，每回合限 1 张（除非装备<b>无限开火权</b>或技能放开）。<br>
-          <b>盖</b>（闪）：响应别人的【投】，抵消这次进攻。<br>
-          <b>佳得乐</b>（桃）：回复 1 点体能；濒死时也可救命。<br>
-          <b>封闭针</b>（酒）：本回合下一张【投】伤害 +1；濒死时可自救 1 点。
+          <b>投</b>：对攻击范围内一名球员造成 1 点体能伤害，每回合限 1 张（除非装备<b>投篮训练机</b>或技能放开）。<br>
+          <b>盖</b>：响应别人的【投】，抵消这次进攻。<br>
+          <b>佳得乐</b>：回复 1 点体能；濒死时也可救命。<br>
+          <b>封闭针</b>：本回合下一张【投】伤害 +1；濒死时可自救 1 点。
         </p>
 
         <h4>🎴 战术牌（部分）</h4>
         <p>
-          <b>战术板</b>（无中生有）：摸 2 张。<br>
-          <b>抢断</b>（顺手牵羊）：拿距离 1 内对手区域内一张牌（NBA：断球）。<br>
-          <b>迫使失误</b>（过河拆桥）：弃对方区域内一张牌（NBA：施压逼迫对手失误丢球）。<br>
-          <b>单挑</b>（决斗）：与目标轮流出【投】，先不出者受伤。<br>
-          <b>三分雨</b>（万箭齐发）：所有人需出【盖】或受 1 伤。<br>
-          <b>全场紧逼</b>（南蛮入侵）：所有人需出【投】或受 1 伤。<br>
-          <b>官方暂停</b>（桃园结义）：全员回血 1 点。<br>
-          <b>裁判回看</b>（无懈可击）：抵消一张战术牌的效果。<br>
-          <b>犯规麻烦</b>（乐不思蜀，延时）：判定不为♥ 则跳过出牌阶段。
+          <b>战术板</b>：摸 2 张。<br>
+          <b>抢断</b>：拿对手区域内一张牌（断球）。<br>
+          <b>迫使失误</b>：弃对方区域内一张牌（施压逼迫失误丢球）。<br>
+          <b>单挑</b>：被指定方先出【投】，与发起者轮流，先无投者受伤。<br>
+          <b>三分雨</b>：所有非源玩家需出【盖】或受 1 伤。<br>
+          <b>全场紧逼</b>：所有非源玩家需出【投】或受 1 伤。<br>
+          <b>官方暂停</b>：全员回血 1 点。<br>
+          <b>裁判回看</b>：抵消一张战术牌的效果。<br>
+          <b>犯规麻烦</b>（延时）：下回合出牌阶段判定，非红桃则跳过出牌。<br>
+          <b>体能危机</b>（延时）：下回合摸牌阶段判定，非梅花则跳过摸牌。<br>
+          <b>伤病隐患</b>（延时）：下回合准备阶段判定，命中则受 3 点伤害。
         </p>
 
         <h4>👟 装备战靴</h4>
         <p>
-          <b>武器</b>：决定攻击范围（默认 1）。例：<b>错位单打 范围 4</b>、<b>无限开火权 范围 1</b> 但可投多张。<br>
-          <b>防具</b>：<b>联防体系</b>（红色判定视为盖）、<b>护筐屏障</b>（黑色【投】对你无效）。<br>
-          <b>Air Jordan 11</b>（+1 防守战靴）：其他角色计算与你的距离时 +1<br>
-          <b>Kobe 6 Protro</b>（-1 进攻战靴）：你计算与其他角色的距离时 -1
+          <b>武器</b>：决定攻击范围（默认 1）。例：<b>半场标志线</b> 范围 4、<b>投篮训练机</b> 范围 1 但可出多张投。<br>
+          <b>防具</b>：<b>运动眼镜</b>（红色判定视为盖）、<b>护齿</b>（黑色【投】对你无效）。<br>
+          <b>+1 防守战靴</b>（Air Jordan 11 / LeBron 8）：其他角色计算与你的距离时 +1。<br>
+          <b>-1 进攻战靴</b>（Kobe 6 / Kyrie 1）：你计算与其他角色的距离时 -1。
         </p>
 
         <h4>🎮 操作</h4>
         <ul>
           <li><b>点</b>手牌使用；<b>右键</b>查看牌面详情</li>
-          <li>选投/单挑/抢断/迫使失误后，目标球员上会有<b>橙色光圈 + 🎯</b>，hover 上去**红色锁定动画**，点对方完成出牌；再点该牌取消</li>
+          <li>选投/单挑/抢断/迫使失误后，目标球员上会有<b>橙色光圈 + 🎯</b>，点对方完成出牌；再点该牌取消</li>
           <li>装备 / 战术板 / 三分雨 等会弹出<b>使用确认</b>，先看完描述再确定</li>
           <li>不在攻击范围的玩家点击会<b>红色摇晃</b>并提示距离</li>
-          <li>右下日志最新条目从顶部进入有<b>滑入闪烁动画</b></li>
-          <li>球员卡名字旁边有<b>位置标</b>（绿/蓝/红）和<b>身份标</b>（金/蓝/红/紫渐变），距离标告诉你能不能投到</li>
+          <li>被投/AOE 锁定时，顶部 banner 提示，手牌中可响应的牌会<b>蓝色光晕</b>，点击即出，或点「受伤」承伤</li>
           <li>对手手牌只显示<b>叠起来的卡背 + 张数</b>，不能透视</li>
         </ul>
 
-        <h4>🌟 NBA 球员技能（已接通）</h4>
-        <p>
-          LeBron <b>组织</b>、Tim Duncan <b>基本功</b>、Wade <b>突破</b>、Kawhi <b>死亡缠绕</b>、Curry <b>射程</b>、Shaq <b>禁区</b>、Howard <b>盖帽</b>、Battier <b>底角三分</b>、Garnett <b>怒吼</b>、Kobe <b>曼巴</b>、Harden <b>造犯</b>、KD <b>错位</b>、Duncan <b>护框</b>。
+        <h4>🌟 NBA 球员技能（已全部接通）</h4>
+        <p style="line-height:1.7">
+          詹姆斯 <b>全能 / 组织</b>、邓肯 <b>基本功 / 护框</b>、韦德 <b>突破 / 造犯</b>、卡哇伊 <b>死亡缠绕 / 沉默</b>、库里 <b>射程 / 三分雨</b>、奥尼尔 <b>禁区 / 罚球</b>、霍华德 <b>篮板 / 盖帽</b>、巴蒂尔 <b>站位 / 底角三分</b>、加内特 <b>怒吼 / 协防</b>、科比 <b>曼巴 / 绝杀</b>、哈登 <b>造犯 / 后撤步</b>、杜兰特 <b>错位 / 干拔</b>、雷阿伦 <b>底角 / 绝平</b>、保罗 <b>控场 / 抢断</b>、吉诺 <b>妖刀 / 奇袭</b>、伊戈 <b>FMVP / 协防</b>。
         </p>
         <p style="color: var(--text-muted); font-size: 12px;">
-          点球员卡上的【技能名】可以查看每名球员的完整技能描述。
+          点球员卡上的【技能名】或头像可查看每名球员的完整介绍 + 技能描述。
         </p>
       </div>
     </div>
