@@ -192,10 +192,13 @@ export class RoomGuest {
       // 找自己 slot：通过 token 匹配
       const slot = (meta.slots || []).find(s => s.kind === 'guest' && s.peerId === this._myPeerId);
       this.mySlotIndex = slot?.index ?? null;
-      // 开局了：guest 端 game 也要切 humanPlayerIndex
+      // 开局了：guest 端 game 也要切 humanPlayerIndex + 关闭联机 modal 让用户看到游戏区
       if (meta.started && this.game.gameState !== 'playing') {
         this.game.playerCount = meta.maxPlayers;
         this.game.humanPlayerIndex = this.mySlotIndex ?? 0;
+        // 关闭联机 modal，否则 guest 一直停在等待页（实测 bug）
+        document.getElementById('mp-modal')?.classList.remove('show');
+        this.game.renderer?.addLog?.(`▶️ 房主开始了比赛（你是 ${slot?.name || '观战者'}）`, 'system');
         // headless mode + state sync — guest 不自己 doStartGame；等 host 的 state snapshot
       }
       this.onChange();
