@@ -2742,23 +2742,31 @@ export class Game {
   mpBack() { this._mpShowStep('choose'); }
 
   async mpCreateRoom() {
+    console.log('[mp] mpCreateRoom click');
     if (this.mpRoom) {
       this.renderer.addLog('已经在房间里了，请先退出', 'system');
+      alert('已经在房间里了，请先退出');
       return;
     }
     try {
+      console.log('[mp] creating RoomHost...');
       this.mpRoom = new RoomHost(this, {
         maxPlayers: 4,
         onChange: () => this._mpRenderHostSlots(),
       });
+      console.log('[mp] RoomHost created, calling start()');
       await this.mpRoom.start();
-      document.getElementById('mp-room-id').textContent = this.mpRoom.roomId;
+      console.log('[mp] RoomHost started, roomId =', this.mpRoom.roomId);
+      const roomIdEl = document.getElementById('mp-room-id');
+      if (roomIdEl) roomIdEl.textContent = this.mpRoom.roomId;
       this._mpShowStep('host');
       this._mpRenderHostSlots();
       this.renderer.addLog(`🌐 房间已创建：${this.mpRoom.roomId}（等待玩家加入）`, 'system');
     } catch (e) {
+      console.error('[mp] 建房失败:', e);
       this.renderer.addLog(`❌ 建房失败：${e.message || e}`, 'system');
-      console.error(e);
+      alert(`建房失败：${e?.message || e}\n\n请打开 DevTools Console (F12) 看详细错误，发给开发者。`);
+      this.mpRoom = null;
     }
   }
 
