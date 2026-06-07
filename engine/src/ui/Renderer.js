@@ -699,6 +699,17 @@ export class Renderer {
     this.game?.fx?.speak?.(cardName);
   }
 
+  // 被锁定 / 被攻击动效：target 卡片摇晃 + 红光，让玩家立刻知道谁在被打
+  flashTargeted(player) {
+    if (!player) return;
+    const card = document.getElementById(`player-${player.index}`);
+    if (!card) return;
+    card.classList.remove('flash-targeted');
+    void card.offsetWidth; // restart animation
+    card.classList.add('flash-targeted');
+    setTimeout(() => card.classList.remove('flash-targeted'), 1100);
+  }
+
   // 弃牌动效：从源玩家位置弹出一张明牌（2s 可看清楚），最后飞向屏幕正中
   flashDiscard(source, card) {
     if (!card) return;

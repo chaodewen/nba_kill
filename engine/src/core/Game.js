@@ -825,6 +825,7 @@ export class Game {
   handleSha(player, target, card) {
     this.renderer.addLog(`⚔️ ${player.character.name} 对 ${target.character.name} 使用【投】`, 'play');
     this.renderer.flashCardPlay(player, '投', '#e74c3c');
+    this.renderer.flashTargeted?.(target);
     this.fx?.play?.('sha');
 
     // 触发：被投（FMVP 等可能直接取消此投）
@@ -1405,6 +1406,9 @@ export class Game {
       setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 100);
       return;
     }
+
+    // 被 AOE 锁定：摇晃 + 红光提示
+    this.renderer.flashTargeted?.(p);
 
     const hasCard = p.handCards.some(c => c.key === requiredKey);
 
