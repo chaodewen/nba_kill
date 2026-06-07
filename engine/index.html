@@ -29,18 +29,31 @@
     
     html, body {
       height: 100%;
-      overflow: hidden;
       background: var(--bg-primary);
       font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', sans-serif;
       color: var(--text);
       font-size: 14px;
     }
-    
+    body { overflow: hidden; }
+    /* 手机竖屏允许 body 滚动（Safari 工具栏会缩小可视区） */
+    @media (max-width: 768px) {
+      body { overflow: auto; }
+    }
+
     .app {
       display: flex;
       flex-direction: column;
-      height: 100vh;
+      /* dvh 适配 Safari 动态视口（地址栏 / 底部条出现时不会被切掉内容） */
+      height: 100dvh;
+      min-height: 100vh;
       background: linear-gradient(180deg, var(--bg-primary) 0%, #0a0a15 100%);
+    }
+    @media (max-width: 768px) {
+      .app {
+        /* 手机端允许垂直滚动看到所有内容 */
+        height: auto;
+        min-height: 100dvh;
+      }
     }
     
     /* 暂停遮罩 */
@@ -1453,6 +1466,9 @@
       box-shadow: 0 0 60px rgba(243, 156, 18, 0.4);
       text-align: center;
       animation: winner-pop 0.6s ease-out;
+      /* 视口高度有限时允许内部滚动，按钮永远可达 */
+      max-height: calc(100dvh - 32px);
+      overflow-y: auto;
     }
     @keyframes winner-pop {
       0% { transform: scale(0.5); opacity: 0; }
@@ -1578,6 +1594,9 @@
       justify-content: center;
       opacity: 0;
       transition: opacity 0.2s;
+      /* 手机视口小，允许整体滚动让按钮始终能点到 */
+      overflow-y: auto;
+      padding: 16px 0;
     }
     
     .modal-overlay.show {
@@ -1594,6 +1613,9 @@
       position: relative;
       transform: scale(0.9);
       transition: transform 0.2s;
+      /* 防止内容超出视口高度时按钮不可达；overflow-y 内部滚动 */
+      max-height: calc(100dvh - 32px);
+      overflow-y: auto;
     }
     /* 球员介绍弹窗：左图右文，加宽 */
     .modal-box.skill-layout {
@@ -2022,16 +2044,22 @@
       .opp-seat .hand-back::after { font-size: 10px !important; }
       .opp-seat .hand-back.hand-back-count::after { font-size: 11px !important; }
 
-      /* —— 屏幕中央弃牌堆迷你化 —— */
+      /* —— 屏幕中央弃牌堆迷你化（钉到 game-area 顶部右侧空位，不再挡玩家框） —— */
       .center-discard-stack {
-        top: auto !important;
-        bottom: 4px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
+        top: 4px !important;
+        bottom: auto !important;
+        left: auto !important;
+        right: 4px !important;
+        transform: none !important;
+        flex-direction: row !important;
+        background: rgba(0,0,0,0.45) !important;
+        padding: 3px 6px !important;
+        border-radius: 6px !important;
+        border: 1px solid rgba(255,255,255,0.1) !important;
       }
-      .center-discard-stack .stack-back { width: 32px !important; height: 44px !important; margin-left: -22px !important; }
-      .center-discard-stack .stack-back::after { font-size: 14px !important; }
-      .center-discard-stack .stack-count { font-size: 10px !important; padding: 2px 8px !important; margin-left: 10px !important; }
+      .center-discard-stack .stack-back { width: 22px !important; height: 30px !important; margin-left: -16px !important; }
+      .center-discard-stack .stack-back::after { font-size: 11px !important; }
+      .center-discard-stack .stack-count { font-size: 10px !important; padding: 2px 8px !important; margin-left: 8px !important; }
 
       /* —— Human 区紧凑 —— */
       .human-section {
@@ -2058,17 +2086,32 @@
       .human-actions { gap: 5px !important; padding: 0 !important; }
       .human-actions .quick-btn { padding: 6px 4px !important; font-size: 11px !important; min-height: 28px !important; }
 
-      /* —— Bottom panel 默认 16vh 显示 ~3 行日志，点击 log header 展开 —— */
+      /* —— Bottom panel 手机版：默认 ~2 行日志固定显示，点击展开 60vh + 内部滚动 —— */
       .bottom-panel {
+        position: sticky;
+        bottom: 0;
         width: 100% !important;
         min-width: 0 !important;
         max-width: none !important;
-        max-height: 16vh;
         flex: 0 0 auto !important;
         transition: max-height 0.3s ease;
+        z-index: 10;
+        background: var(--bg-secondary);
+        border-top: 2px solid var(--border);
+      }
+      .bottom-panel:not(.expanded) {
+        max-height: 96px;
+      }
+      .bottom-panel:not(.expanded) .log-content {
+        max-height: 48px !important;
+        overflow: hidden;
       }
       .bottom-panel.expanded {
-        max-height: 60vh !important;
+        max-height: 60dvh !important;
+      }
+      .bottom-panel.expanded .log-content {
+        max-height: calc(60dvh - 70px) !important;
+        overflow-y: auto;
       }
       .control-bar { gap: 4px !important; padding: 4px !important; }
       .control-bar .btn { padding: 6px 10px !important; font-size: 12px !important; }
@@ -2076,6 +2119,7 @@
 
       .log-content-inner { padding: 4px 8px !important; font-size: 11px !important; line-height: 1.4 !important; }
       .log-entry { padding: 2px 5px !important; margin: 1px 0 !important; }
+      .log-header { font-size: 12px !important; padding: 4px 8px !important; }
 
       /* —— 模态弹窗适配窄屏 —— */
       .modal-box.skill-layout {
@@ -2093,6 +2137,27 @@
       /* target-banner / settings panel 缩小 */
       .target-banner { font-size: 12px !important; padding: 6px 8px !important; gap: 6px !important; }
       .settings-panel { width: 80vw !important; right: -85vw; padding: 12px !important; }
+    }
+
+    /* 手机横屏：弹出"请竖屏"覆盖层（≤768px 且横屏） */
+    @media (max-width: 900px) and (orientation: landscape) and (max-height: 500px) {
+      body::before {
+        content: '📱 请将设备竖过来\\A NBA Kill 仅支持竖屏游戏';
+        position: fixed;
+        inset: 0;
+        background: rgba(13, 13, 26, 0.97);
+        color: var(--primary);
+        z-index: 9999;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        font-weight: 700;
+        text-align: center;
+        white-space: pre-wrap;
+        line-height: 1.8;
+        letter-spacing: 1px;
+      }
     }
 
     /* ============================================================ */
