@@ -1262,6 +1262,9 @@ export class Game {
       const idx = Math.floor(Math.random() * target.handCards.length);
       const card = target.handCards.splice(idx, 1)[0];
       player.handCards.push(card);
+      // 飞牌动效：先在 target 那闪明牌（让玩家看清抢的是什么），再 flash 到 source 的牌堆区
+      this.renderer.flashCardPlay(target, card.name, '#1abc9c');
+      this.fx?.speak?.(`抢断！${card.name}！`);
       this.renderer.updatePlayer(player);
       this.renderer.updatePlayer(target);
       this.renderer.addLog(`获得【${card.name}】`, 'play');
@@ -2142,6 +2145,7 @@ export class Game {
     this.gameState = 'ended';
     this.stopPlayQueue();
     this.fx?.play?.('win');
+    this.fx?.speak?.('终场哨响！比赛结束！');
 
     this.renderer.updateButtons('ended');
     this.renderer.updateUI(this);
@@ -2163,28 +2167,39 @@ export class Game {
     });
   }
 
-  // 比赛精彩镜头：从 highlights 数组提炼 2 条总结
+  // 比赛精彩镜头：从 highlights 数组提炼总结，杨毅解说风
   buildHighlightSummary() {
     const lines = [];
     const kills = (this.highlights || []).filter(h => h.kind === 'kill');
     const totalKills = kills.length;
     const turns = this.turnCount || 0;
+    const nick = (p) => p?.character?.nickname || p?.character?.cnName || p?.character?.name || '?';
 
     if (kills.length > 0) {
       const first = kills[0];
-      lines.push(`第 ${first.turn} 回合，${first.source?.character?.name || '?'} 率先建功，将 ${first.target?.character?.name || '?'} 送出场外。`);
+      lines.push(`第 ${first.turn} 回合，${nick(first.source)} 率先建功，把 ${nick(first.target)} 直接送下场。`);
     }
 
     // MVP：击杀最多
     if (this.killCounts) {
       const ranked = Object.entries(this.killCounts).sort((a, b) => b[1] - a[1]);
       if (ranked.length > 0 && ranked[0][1] >= 2) {
-        lines.push(`${ranked[0][0]} 全场轰下 ${ranked[0][1]} 次终结，毫无悬念的 MVP。`);
+        const mvpName = ranked[0][0];
+        // 找回 player 拿昵称
+        const mvpPlayer = (this.players || []).find(p => p.character?.name === mvpName);
+        const mvpNick = mvpPlayer ? nick(mvpPlayer) : mvpName;
+        lines.push(`${mvpNick} 全场轰下 ${ranked[0][1]} 次终结，毫无悬念的当家 MVP。`);
       }
     }
 
+    // 末杀
+    if (kills.length >= 2 && lines.length < 2) {
+      const last = kills[kills.length - 1];
+      lines.push(`${nick(last.source)} 一记关键终结杀死 ${nick(last.target)}，直接锁定胜局。`);
+    }
+
     if (lines.length < 2) {
-      lines.push(`激战 ${turns} 个回合、共 ${totalKills} 次击杀的硬仗，赛场已写入名人堂。`);
+      lines.push(`激战 ${turns} 个回合 / ${totalKills} 次终结，这场硬仗已经写进名人堂。`);
     }
     return lines.slice(0, 2);
   }
@@ -2535,6 +2550,21 @@ export class Game {
       this.fx?.speak?.('结束回合');
     }
     this.discardPhase(player);
+  }
+
+  // human 主动技能（出牌阶段限一次的主动技，比如库里三分雨 / 韦德突破 / 杜兰特干拔等）
+  useActiveSkill() {
+    if (this.gameState !== 'playing') return;
+    const player = this.players[this.currentPlayerIndex];
+    if (!player?.isHuman || player._activePhaseSkillUsed) return;
+    const r = this.skills.checkTrigger(player, 'play_phase', { source: player });
+    if (!r?.canUse) {
+      this.renderer.flashRejected?.(player.index, '当前没有可发动的主动技能');
+      return;
+    }
+    player._activePhaseSkillUsed = true;
+    this.applySkillResult(player, r);
+    this.renderer.updateUI(this);
   }
 
   findValidTarget(source) {

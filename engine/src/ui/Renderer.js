@@ -322,8 +322,20 @@ export class Renderer {
     const hasSha = player.handCards?.some(c => c.key === 'sha');
     const hasTao = player.handCards?.some(c => c.key === 'tao');
     const isDiscardPhase = this.currentPhase === 'discard';
-    
+
+    // 主动技能按钮：库里三分雨 / 韦德突破等出牌阶段限一次的主动技
+    let skillBtn = '';
+    if (this.game?.skills && !player._activePhaseSkillUsed && this.game?.gameState === 'playing'
+        && this.game.players?.[this.game.currentPlayerIndex] === player
+        && this.currentPhase === 'play') {
+      const r = this.game.skills.checkTrigger(player, 'play_phase', { source: player, dryRun: true });
+      if (r?.canUse) {
+        skillBtn = `<button class="quick-btn skill" onclick="game.useActiveSkill()" title="${r.description || r.name}">✨${r.name}</button>`;
+      }
+    }
+
     return `
+      ${skillBtn}
       <button class="quick-btn sha ${player.hasUsedSha ? '' : ''}" onclick="game.quickPlay('sha')" ${hasSha && !player.hasUsedSha ? '' : 'disabled'}>投</button>
       <button class="quick-btn tao" onclick="game.quickPlay('tao')" ${hasTao && player.hp < player.maxHp ? '' : 'disabled'}>佳得乐</button>
       <button class="quick-btn discard ${isDiscardPhase ? 'highlight' : ''}" onclick="game.quickDiscard()">🧹弃</button>

@@ -673,10 +673,42 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.3);
       white-space: nowrap;
     }
+    /* 自己 / 调试模式：身份 tag 跟在名字旁边 inline 显示 */
     .player-card.human-player .identity-tag,
-    .player-card.dead .identity-tag,
-    body.debug-identity .identity-tag {
+    body.debug-identity .player-card:not(.dead) .identity-tag {
       display: inline-block;
+    }
+
+    /* 死亡玩家：身份大牌贴在卡内中央，明显展示 */
+    .player-card.dead {
+      filter: grayscale(1);
+      opacity: 0.55;
+    }
+    .player-card.dead .identity-tag {
+      display: inline-block !important;
+      position: absolute !important;
+      top: 50% !important;
+      left: 50% !important;
+      transform: translate(-50%, -50%) rotate(-12deg) !important;
+      font-size: 24px !important;
+      padding: 6px 18px !important;
+      letter-spacing: 2px !important;
+      border-radius: 8px !important;
+      box-shadow: 0 0 24px rgba(255, 255, 255, 0.4), 0 4px 16px rgba(0,0,0,0.6) !important;
+      z-index: 12 !important;
+      border: 2px solid currentColor !important;
+      background: rgba(0, 0, 0, 0.85) !important;
+      pointer-events: none;
+    }
+    .player-card.dead .identity-tag.identity-core { color: #fbbf24 !important; }
+    .player-card.dead .identity-tag.identity-teammate { color: #60a5fa !important; }
+    .player-card.dead .identity-tag.identity-opponent { color: #ef4444 !important; }
+    .player-card.dead .identity-tag.identity-solo { color: #c084fc !important; }
+    @media (max-width: 768px) {
+      .player-card.dead .identity-tag {
+        font-size: 18px !important;
+        padding: 4px 12px !important;
+      }
     }
 
     /* 主力（核心）标记：明牌永远可见 */
