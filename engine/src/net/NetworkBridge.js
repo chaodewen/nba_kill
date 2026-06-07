@@ -21,60 +21,53 @@ import { joinRoom } from 'trystero/nostr';
 const APP_ID = 'nba-kill-v1';
 
 // ========== Host ==========
-// 用法：
-//   const host = await createHost('ABC123');
-//   host.onPeerJoin((peerId) => { ... });
-//   host.broadcastEvent({ type: 'ui:flashCardPlay', args: [...] });
-//   host.onPeerIntent((intent, peerId) => { game.handleIntent(intent) });
 export async function createHost(roomId) {
   const room = joinRoom({ appId: APP_ID }, roomId);
-  const [sendEvent, getEvent] = room.makeAction('event');
-  const [sendState, getState] = room.makeAction('state');
-  const [sendIntent, getIntent] = room.makeAction('intent');
-  const [sendMeta, getMeta] = room.makeAction('meta'); // 房间元信息（玩家列表 / 开始）
+  // trystero 0.25+ makeAction 返回 { send, onMessage, ... } 对象（不再是 tuple）
+  // onPeerJoin/onPeerLeave 也变成 property 赋值（不是函数调用）
+  const eventAction = room.makeAction('event');
+  const stateAction = room.makeAction('state');
+  const intentAction = room.makeAction('intent');
+  const metaAction = room.makeAction('meta');
 
   return {
     roomId,
     role: 'host',
     room,
-    onPeerJoin(fn) { room.onPeerJoin(fn); },
-    onPeerLeave(fn) { room.onPeerLeave(fn); },
-    onPeerIntent(fn) { getIntent(fn); },
-    broadcastEvent(payload) { sendEvent(payload); },
-    broadcastState(state) { sendState(state); },
-    broadcastMeta(meta) { sendMeta(meta); },
+    onPeerJoin(fn) { room.onPeerJoin = fn; },
+    onPeerLeave(fn) { room.onPeerLeave = fn; },
+    onPeerIntent(fn) { intentAction.onMessage = (data, ctx) => fn(data, ctx?.peerId); },
+    broadcastEvent(payload) { eventAction.send(payload); },
+    broadcastState(state) { stateAction.send(state); },
+    broadcastMeta(meta) { metaAction.send(meta); },
     sendToPeer(peerId, kind, payload) {
-      // trystero send 第三参数限定接收者
-      if (kind === 'event') sendEvent(payload, peerId);
-      else if (kind === 'state') sendState(payload, peerId);
-      else if (kind === 'meta') sendMeta(payload, peerId);
+      const action = kind === 'event' ? eventAction
+                   : kind === 'state' ? stateAction
+                   : kind === 'meta' ? metaAction : null;
+      if (action) action.send(payload, { to: [peerId] });
     },
     leave() { room.leave(); },
   };
 }
 
 // ========== Guest ==========
-// 用法：
-//   const guest = await joinAsGuest('ABC123');
-//   guest.onEvent(({ type, args }) => { ... });
-//   guest.sendIntent({ name: 'playHandCard', args: [0, cardId] });
 export async function joinAsGuest(roomId) {
   const room = joinRoom({ appId: APP_ID }, roomId);
-  const [sendEvent, getEvent] = room.makeAction('event');
-  const [sendState, getState] = room.makeAction('state');
-  const [sendIntent, getIntent] = room.makeAction('intent');
-  const [sendMeta, getMeta] = room.makeAction('meta');
+  const eventAction = room.makeAction('event');
+  const stateAction = room.makeAction('state');
+  const intentAction = room.makeAction('intent');
+  const metaAction = room.makeAction('meta');
 
   return {
     roomId,
     role: 'guest',
     room,
-    onPeerJoin(fn) { room.onPeerJoin(fn); },
-    onPeerLeave(fn) { room.onPeerLeave(fn); },
-    onEvent(fn) { getEvent(fn); },
-    onState(fn) { getState(fn); },
-    onMeta(fn) { getMeta(fn); },
-    sendIntent(intent) { sendIntent(intent); },
+    onPeerJoin(fn) { room.onPeerJoin = fn; },
+    onPeerLeave(fn) { room.onPeerLeave = fn; },
+    onEvent(fn) { eventAction.onMessage = (data) => fn(data); },
+    onState(fn) { stateAction.onMessage = (data) => fn(data); },
+    onMeta(fn) { metaAction.onMessage = (data) => fn(data); },
+    sendIntent(intent) { intentAction.send(intent); },
     leave() { room.leave(); },
   };
 }
