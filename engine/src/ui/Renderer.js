@@ -571,6 +571,7 @@ export class Renderer {
   }
 
   // 出牌动效：在玩家卡片上飘出一张被使用的牌名（投/盖/佳得乐 等都通用）
+  // 同步 game.fx 用中文 TTS 报牌名，气势喊出来
   flashCardPlay(player, cardName, color) {
     if (!player) return;
     const card = document.getElementById(`player-${player.index}`);
@@ -581,6 +582,8 @@ export class Renderer {
     if (color) burst.style.background = color;
     card.appendChild(burst);
     setTimeout(() => burst.remove(), 1900);
+    // TTS 报牌名（用 cardName 的中文）
+    this.game?.fx?.speak?.(cardName);
   }
 
   // 弃牌动效：从源玩家位置弹出一张明牌（2s 可看清楚），最后飞向屏幕正中
