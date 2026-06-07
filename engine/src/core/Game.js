@@ -271,6 +271,8 @@ export class Game {
     // 本回合状态：用于 篮板（首张被弃基本牌）/ 抢断（第 N 张牌）等触发
     this._discardedThisTurn = 0;
     this._cardsUsedThisTurn = 0;
+    player._activePhaseSkillUsed = false;
+    player._shaLimitDelta = 0;
     
     this.renderer.highlightPlayer(player);
     this.renderer.updateUI(this);
@@ -408,6 +410,20 @@ export class Game {
       this.renderer.updatePlayer(player);
       this.renderer.updateUI(this);
       return;
+    }
+
+    // AI 出牌阶段主动技尝试（妖刀 / 干拔等。每回合限一次，由 _activePhaseSkillUsed 防重复）
+    if (!player._activePhaseSkillUsed) {
+      const r = this.skills?.checkTrigger?.(player, 'play_phase', { source: player });
+      if (r?.canUse) {
+        player._activePhaseSkillUsed = true;
+        const handled = this.applySkillResult(player, r);
+        if (handled) {
+          // 主动技占用 ~1.5s 时间窗，完后继续走 aiPlayCards
+          setTimeout(() => this.aiPlayCards(player), 1500);
+          return;
+        }
+      }
     }
 
     this.aiPlayCards(player);
@@ -1446,6 +1462,52 @@ export class Game {
         };
         log(`视为对 ${t.character.name} 使用一张【投】`);
         setTimeout(() => this.handleSha(player, t, virtualSha), 1200);
+        return true;
+      }
+
+      // Manu 妖刀：弃 1 张牌摸 2 张牌，本阶段投上限 -1
+      case 'discard_draw_two_limit': {
+        if (player.handCards.length === 0) return false;
+        const idx = Math.floor(Math.random() * player.handCards.length);
+        const c = player.handCards.splice(idx, 1)[0];
+        this.discardWithFlash(c, player);
+        const drawCount = result.drawCount || 2;
+        const drawn = this.deck.drawMultiple(drawCount);
+        player.drawCards(drawn);
+        player._shaLimitDelta = (player._shaLimitDelta || 0) + (result.shaLimitDelta || 0);
+        log(`弃【${c.name}】，摸 ${drawCount} 张牌（本阶段投上限 ${result.shaLimitDelta || 0}）`);
+        this.renderer.updatePlayer(player);
+        return true;
+      }
+
+      // KD 干拔：弃 1 张装备视为出一张无距离限制的投
+      case 'discard_equip_as_sha': {
+        const eq = player.equipment || {};
+        const slots = ['weapon', 'armor', 'defenseHorse', 'offenseHorse'];
+        const haveSlot = slots.find(s => eq[s]);
+        if (!haveSlot) return false;
+        const equipCard = eq[haveSlot];
+        eq[haveSlot] = null;
+        this.discardWithFlash(equipCard, player);
+
+        const candidates = this.players.filter(p =>
+          p !== player && p.isAlive && isEnemy(player, p)
+        );
+        this.renderer.updatePlayer(player);
+        if (candidates.length === 0) {
+          log(`弃装备【${equipCard.name}】 — 但场上无敌人可击`);
+          return true;
+        }
+        candidates.sort((a, b) => a.hp - b.hp);
+        const t = candidates[0];
+        const virtualSha = {
+          key: 'sha', name: '投', suit: 'spade', type: 'basic',
+          color: '#e74c3c',
+          id: -Date.now() - Math.random(),
+          isVirtual: true,
+        };
+        log(`弃装备【${equipCard.name}】，无视距离对 ${t.character.name} 出一张【投】`);
+        setTimeout(() => this.handleSha(player, t, virtualSha), 1000);
         return true;
       }
 
