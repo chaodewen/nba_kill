@@ -144,16 +144,15 @@ export class Renderer {
     }
   }
 
-  // 手机竖屏圆桌布局：所有玩家（含 human）位置由 N + seat 决定
-  // 行 row: 'top' | 'mid' | 'bot'；列 col: 行内 0-based；total: 该行总数
-  // 顺时针走位映射到屏幕 — 自己为 mid，CW 邻居在 bot 右，CCW 邻居在 bot 左
+  // 手机竖屏圆桌布局：人在左边圈上，对手分布上/下两排，右边空出留给牌堆
+  // 顺时针顺序：human (左) → 上排 L→R → 右边折返 → 下排 R→L → 回到 human
   static getMobileSeatLayout(N, seat) {
     const M = {
-      4: { 0: ['mid', 0, 1], 1: ['bot', 1, 2], 2: ['top', 0, 1], 3: ['bot', 0, 2] },
-      5: { 0: ['mid', 0, 1], 1: ['bot', 1, 2], 2: ['top', 1, 2], 3: ['top', 0, 2], 4: ['bot', 0, 2] },
-      6: { 0: ['mid', 0, 1], 1: ['bot', 1, 2], 2: ['top', 2, 3], 3: ['top', 1, 3], 4: ['top', 0, 3], 5: ['bot', 0, 2] },
-      7: { 0: ['mid', 0, 1], 1: ['bot', 2, 3], 2: ['bot', 1, 3], 3: ['top', 2, 3], 4: ['top', 1, 3], 5: ['top', 0, 3], 6: ['bot', 0, 3] },
-      8: { 0: ['mid', 0, 1], 1: ['bot', 2, 3], 2: ['bot', 1, 3], 3: ['top', 3, 4], 4: ['top', 2, 4], 5: ['top', 1, 4], 6: ['top', 0, 4], 7: ['bot', 0, 3] },
+      4: { 0: ['humanleft'], 1: ['top', 0, 2], 2: ['top', 1, 2], 3: ['bot', 0, 1] },
+      5: { 0: ['humanleft'], 1: ['top', 0, 2], 2: ['top', 1, 2], 3: ['bot', 1, 2], 4: ['bot', 0, 2] },
+      6: { 0: ['humanleft'], 1: ['top', 0, 3], 2: ['top', 1, 3], 3: ['top', 2, 3], 4: ['bot', 1, 2], 5: ['bot', 0, 2] },
+      7: { 0: ['humanleft'], 1: ['top', 0, 3], 2: ['top', 1, 3], 3: ['top', 2, 3], 4: ['bot', 2, 3], 5: ['bot', 1, 3], 6: ['bot', 0, 3] },
+      8: { 0: ['humanleft'], 1: ['top', 0, 4], 2: ['top', 1, 4], 3: ['top', 2, 4], 4: ['top', 3, 4], 5: ['bot', 2, 3], 6: ['bot', 1, 3], 7: ['bot', 0, 3] },
     };
     return (M[N] && M[N][seat]) || ['top', 0, 1];
   }
@@ -165,31 +164,47 @@ export class Renderer {
     const N = players.length;
     oppArea.className = `opponents-area opponents-${opponents.length} mobile-portrait players-${N}`;
 
-    // 隐藏底部那个 humanCardWrap（手机端我们把人放到 game-area 中间）
     if (this.elements.humanCardWrap) this.elements.humanCardWrap.innerHTML = '';
 
-    // 渲染顺时针箭头背景（出牌顺序提示）
+    // 顺时针箭头：human(左) → 上排向右 → 右侧拐 → 下排向左 → 回 human
     const arrow = document.createElement('div');
     arrow.className = 'mobile-turn-arrow';
     arrow.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
       <defs>
-        <marker id="arrhead" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
-          <polygon points="0 0, 10 5, 0 10" fill="rgba(243,156,18,0.35)"/>
+        <marker id="arrhead-mobile" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+          <polygon points="0 0, 8 4, 0 8" fill="rgba(243,156,18,0.55)"/>
         </marker>
       </defs>
-      <path d="M 80 85 Q 95 50 80 15 Q 50 5 20 15 Q 5 50 20 85 Q 50 95 80 85"
-            fill="none" stroke="rgba(243,156,18,0.25)" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrhead)"/>
+      <path d="M 18 50 Q 18 18 50 18 Q 88 18 88 50 Q 88 82 50 82 Q 18 82 18 50"
+            fill="none" stroke="rgba(243,156,18,0.35)" stroke-width="1.2" stroke-dasharray="3 3" marker-end="url(#arrhead-mobile)"/>
     </svg>`;
     oppArea.appendChild(arrow);
 
+    // 牌堆视觉元素（固定在右侧空位 mid-right）
+    const deckSlot = document.createElement('div');
+    deckSlot.className = 'mobile-deck-slot';
+    deckSlot.id = 'mobile-deck-slot';
+    deckSlot.innerHTML = `
+      <div class="mobile-deck-icon">📦</div>
+      <div class="mobile-deck-count" id="mobile-deck-count">${this.game?.deck?.getRemaining?.() ?? 0}</div>
+      <div class="mobile-deck-discard" id="mobile-deck-discard">🗑️ <span id="mobile-discard-count">${this.game?.deck?.getDiscardCount?.() ?? 0}</span></div>
+    `;
+    oppArea.appendChild(deckSlot);
+
     const place = (player) => {
-      const [row, col, total] = Renderer.getMobileSeatLayout(N, player.index);
-      const xMargin = 4;
-      const x = xMargin + (col + 0.5) / total * (100 - 2 * xMargin);
-      const y = row === 'top' ? 17 : row === 'mid' ? 50 : 83;
+      const layout = Renderer.getMobileSeatLayout(N, player.index);
+      let x, y;
+      if (layout[0] === 'humanleft') {
+        x = 13;
+        y = 50;
+      } else {
+        const [row, col, total] = layout;
+        // 顶部 / 底部 row：x 范围 26-92%（避开左侧 human + 留点右侧边距）
+        x = 26 + (col + 0.5) / total * 66;
+        y = row === 'top' ? 18 : 82;
+      }
       const wrap = document.createElement('div');
-      wrap.className = `opp-seat mobile-seat seat-${row}`;
-      if (player.isHuman) wrap.classList.add('seat-human');
+      wrap.className = `opp-seat mobile-seat ${player.isHuman ? 'seat-human' : (layout[0] === 'top' ? 'seat-top' : 'seat-bot')}`;
       wrap.style.left = `${x}%`;
       wrap.style.top = `${y}%`;
       const card = this.createPlayerCard(player);
@@ -409,6 +424,11 @@ export class Renderer {
       const discardCount = deck.getDiscardCount();
       this.elements.discardPile.textContent = discardCount;
       this.updateCenterDiscardPile(discardCount);
+      // 手机端右侧牌堆视觉
+      const mobileDeck = document.getElementById('mobile-deck-count');
+      const mobileDiscard = document.getElementById('mobile-discard-count');
+      if (mobileDeck) mobileDeck.textContent = deck.getRemaining();
+      if (mobileDiscard) mobileDiscard.textContent = discardCount;
     }
     
     const statusEl = this.elements.gameStatus;
