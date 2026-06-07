@@ -166,17 +166,23 @@ export class Renderer {
 
     if (this.elements.humanCardWrap) this.elements.humanCardWrap.innerHTML = '';
 
-    // 顺时针箭头：human(左) → 上排向右 → 右侧拐 → 下排向左 → 回 human
+    // 顺时针箭头：椭圆 path + 沿圈 4 个明显箭头标方向（top→右 / 右→下 / 下→左 / 左→上）
     const arrow = document.createElement('div');
     arrow.className = 'mobile-turn-arrow';
     arrow.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
       <defs>
-        <marker id="arrhead-mobile" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
-          <polygon points="0 0, 8 4, 0 8" fill="rgba(243,156,18,0.55)"/>
+        <marker id="arrhead-mobile" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+          <polygon points="0 0, 10 5, 0 10" fill="rgba(243,156,18,0.95)"/>
         </marker>
       </defs>
+      <!-- 椭圆轨迹（虚线） -->
       <path d="M 18 50 Q 18 18 50 18 Q 92 18 92 50 Q 92 82 50 82 Q 18 82 18 50"
-            fill="none" stroke="rgba(243,156,18,0.35)" stroke-width="1.2" stroke-dasharray="3 3" marker-end="url(#arrhead-mobile)"/>
+            fill="none" stroke="rgba(243,156,18,0.32)" stroke-width="1.5" stroke-dasharray="3 3"/>
+      <!-- 4 个独立箭头标方向（顺时针） -->
+      <line x1="32" y1="20" x2="48" y2="18" stroke="rgba(243,156,18,0.85)" stroke-width="2.5" marker-end="url(#arrhead-mobile)"/>
+      <line x1="86" y1="32" x2="90" y2="48" stroke="rgba(243,156,18,0.85)" stroke-width="2.5" marker-end="url(#arrhead-mobile)"/>
+      <line x1="68" y1="80" x2="52" y2="82" stroke="rgba(243,156,18,0.85)" stroke-width="2.5" marker-end="url(#arrhead-mobile)"/>
+      <line x1="14" y1="68" x2="18" y2="52" stroke="rgba(243,156,18,0.85)" stroke-width="2.5" marker-end="url(#arrhead-mobile)"/>
     </svg>`;
     oppArea.appendChild(arrow);
 
