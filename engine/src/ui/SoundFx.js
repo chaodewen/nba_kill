@@ -138,4 +138,59 @@ export class SoundFx {
     osc.start(now);
     osc.stop(now + preset.dur + 0.1);
   }
+
+  // 开局宏大号角 — 仿魔兽风格的铜管 fanfare：低音鼓 + 三和弦递进 + 高音 triumph + 收尾大锤
+  // 全程 ~2.6s，纯 Web Audio 合成，零外部资源
+  playFanfare() {
+    if (!this.enabled) return;
+    const ctx = this._ensureCtx();
+    if (!ctx) return;
+    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
+
+    const t0 = ctx.currentTime;
+    const note = (freq, start, dur, type = 'sawtooth', vol = 0.08, slideTo = null) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, t0 + start);
+      if (slideTo) osc.frequency.linearRampToValueAtTime(slideTo, t0 + start + dur);
+      gain.gain.setValueAtTime(0, t0 + start);
+      gain.gain.linearRampToValueAtTime(vol, t0 + start + 0.04);
+      gain.gain.linearRampToValueAtTime(vol * 0.65, t0 + start + dur * 0.6);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + start + dur);
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(t0 + start);
+      osc.stop(t0 + start + dur + 0.05);
+    };
+
+    // 第一击：低音鼓（深沉，sub-bass）
+    note(55, 0.00, 0.45, 'sine', 0.32, 30);
+
+    // C 大调主和弦（C3 / E3 / G3）
+    note(131, 0.00, 0.65, 'sawtooth', 0.06);
+    note(165, 0.00, 0.65, 'sawtooth', 0.06);
+    note(196, 0.00, 0.65, 'sawtooth', 0.06);
+
+    // F 大调（IV）
+    note(175, 0.65, 0.55, 'sawtooth', 0.07);
+    note(220, 0.65, 0.55, 'sawtooth', 0.07);
+    note(262, 0.65, 0.55, 'sawtooth', 0.07);
+
+    // G 大调（V，张力）
+    note(196, 1.20, 0.55, 'sawtooth', 0.08);
+    note(247, 1.20, 0.55, 'sawtooth', 0.08);
+    note(294, 1.20, 0.55, 'sawtooth', 0.08);
+
+    // C 大调高八度（I 解决，胜利感）
+    note(262, 1.75, 1.00, 'sawtooth', 0.10);
+    note(330, 1.75, 1.00, 'sawtooth', 0.10);
+    note(392, 1.75, 1.00, 'sawtooth', 0.10);
+    note(523, 1.75, 1.20, 'triangle', 0.10); // 高音 melody C5
+
+    // 收尾大锤
+    note(55, 2.65, 0.40, 'sine', 0.28, 28);
+    note(523, 2.65, 0.50, 'square', 0.06);
+    note(659, 2.65, 0.50, 'square', 0.06);
+    note(784, 2.65, 0.55, 'square', 0.06);
+  }
 }

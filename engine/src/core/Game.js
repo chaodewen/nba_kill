@@ -192,8 +192,13 @@ export class Game {
 
     this.renderer.addLog(`🎮 游戏开始！${this.playerCount} 人局，牌堆 ${this.deck.getRemaining()} 张`, 'system');
 
-    // 开始第一个回合
-    setTimeout(() => this.startTurn(), 500);
+    // 开局宏大号角 + 中文 TTS 喊话（魔兽风 fanfare）
+    this.fx?.unlock?.();
+    this.fx?.playFanfare?.();
+    setTimeout(() => this.fx?.speak?.('比赛开始！'), 300);
+
+    // 开始第一个回合（fanfare 约 2.6s，给 3s 让玩家听完再开打）
+    setTimeout(() => this.startTurn(), 3000);
   }
 
   // 根据人数生成本局身份分配（全部打乱，人类玩家落到哪个身份完全随机）
