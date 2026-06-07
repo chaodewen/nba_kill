@@ -175,19 +175,23 @@ export class Renderer {
           <polygon points="0 0, 8 4, 0 8" fill="rgba(243,156,18,0.55)"/>
         </marker>
       </defs>
-      <path d="M 18 50 Q 18 18 50 18 Q 88 18 88 50 Q 88 82 50 82 Q 18 82 18 50"
+      <path d="M 18 50 Q 18 18 50 18 Q 92 18 92 50 Q 92 82 50 82 Q 18 82 18 50"
             fill="none" stroke="rgba(243,156,18,0.35)" stroke-width="1.2" stroke-dasharray="3 3" marker-end="url(#arrhead-mobile)"/>
     </svg>`;
     oppArea.appendChild(arrow);
 
-    // 牌堆视觉元素（固定在右侧空位 mid-right）
+    // 牌堆视觉元素：一摞卡背 + 张数（位置在 mid-right 偏左，不压圈线）
     const deckSlot = document.createElement('div');
     deckSlot.className = 'mobile-deck-slot';
     deckSlot.id = 'mobile-deck-slot';
     deckSlot.innerHTML = `
-      <div class="mobile-deck-icon">📦</div>
+      <div class="mobile-deck-stack">
+        <div class="mobile-deck-card mobile-deck-card-3"></div>
+        <div class="mobile-deck-card mobile-deck-card-2"></div>
+        <div class="mobile-deck-card mobile-deck-card-1"></div>
+      </div>
       <div class="mobile-deck-count" id="mobile-deck-count">${this.game?.deck?.getRemaining?.() ?? 0}</div>
-      <div class="mobile-deck-discard" id="mobile-deck-discard">🗑️ <span id="mobile-discard-count">${this.game?.deck?.getDiscardCount?.() ?? 0}</span></div>
+      <div class="mobile-deck-discard">🗑️ <span id="mobile-discard-count">${this.game?.deck?.getDiscardCount?.() ?? 0}</span></div>
     `;
     oppArea.appendChild(deckSlot);
 
@@ -199,8 +203,11 @@ export class Renderer {
         y = 50;
       } else {
         const [row, col, total] = layout;
-        // 顶部 / 底部 row：x 范围 26-92%（避开左侧 human + 留点右侧边距）
-        x = 26 + (col + 0.5) / total * 66;
+        // 8 人局 (top 4) 时 x 范围拉大：22%-96%（74% range / 4 = 18.5% per slot）
+        // 其他人数 26%-92% 不变
+        const xMin = (N === 8 && total === 4) ? 22 : 26;
+        const xMax = (N === 8 && total === 4) ? 96 : 92;
+        x = xMin + (col + 0.5) / total * (xMax - xMin);
         y = row === 'top' ? 18 : 82;
       }
       const wrap = document.createElement('div');

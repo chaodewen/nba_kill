@@ -97,13 +97,9 @@ export function makeTestGame({ characters = ['lebron_james', 'kobe_bryant', 'sha
   game.highlights = [];
   game.killCounts = {};
 
-  const defaultIdentities = {
-    4: [{ key: 'core', team: 'core_side' }, { key: 'teammate', team: 'core_side' }, { key: 'opponent', team: 'opponent_side' }, { key: 'solo', team: 'solo' }],
-    5: [{ key: 'core', team: 'core_side' }, { key: 'teammate', team: 'core_side' }, { key: 'opponent', team: 'opponent_side' }, { key: 'opponent', team: 'opponent_side' }, { key: 'solo', team: 'solo' }],
-  };
-  const idList = identities || defaultIdentities[characters.length] || defaultIdentities[4];
-
-  game.identities = idList.map(x => ({ ...x, name: x.key, goal: '' }));
+  // 默认走真实 generateIdentities（含 Fisher-Yates 随机），让测试也能验证随机分布
+  // 测试需要确定身份顺序时显式传 identities 参数
+  game.identities = identities || game.generateIdentities(characters.length);
 
   game.players = characters.map((charKey, i) => {
     const char = CHARACTERS.find(c => c.key === charKey);
@@ -111,14 +107,14 @@ export function makeTestGame({ characters = ['lebron_james', 'kobe_bryant', 'sha
     const p = new Player(i, char);
     p.isHuman = i === humanIndex;
     p.identity = game.identities[i];
-    if (p.identity.key === 'core') {
+    if (p.identity?.key === 'core') {
       p.maxHp += 1;
       p.hp = p.maxHp;
     }
     return p;
   });
 
-  game.currentPlayerIndex = game.players.findIndex(p => p.identity.key === 'core');
+  game.currentPlayerIndex = game.players.findIndex(p => p.identity?.key === 'core');
   if (game.currentPlayerIndex < 0) game.currentPlayerIndex = 0;
 
   return game;
@@ -159,9 +155,23 @@ export function equipPlayer(player, key) {
   return c;
 }
 
+// 把当前 action 之后的所有链式 setTimeout 都阻断
+// 让单一 handleSha / handleX 只测试它本身的直接效果，不传染到后续回合
+export function freezeAfterAction(game) {
+  game.continueAfterCard = () => {};
+  game.aiPlayCards = () => {};
+  game.executePlayQueue = () => {};
+  game.startTurn = () => {};
+  game.preparePhase = () => {};
+  game.drawPhase = () => {};
+  game.playPhase = () => {};
+  game.discardPhase = () => {};
+  game.endPhase = () => {};
+  game.nextTurn = () => {};
+}
+
 // 同步执行所有 setTimeout — 用 vi.useFakeTimers 控制
 export function flushTimers(vi) {
-  // 反复 advance 直到 pendingTimers 为 0
   for (let i = 0; i < 50; i++) {
     if (vi.getTimerCount() === 0) break;
     vi.runAllTimers();
