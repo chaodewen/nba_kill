@@ -1,6 +1,22 @@
 const path = require('path');
 const webpack = require('webpack');
 const fs = require('fs');
+const { execSync } = require('child_process');
+
+// 版本号：基于 git commit 总数（递增唯一）+ short sha，跟 commit 一一对应
+// 例：v0.3.184 · a3f4ebe — 这个 sha 在 commit message 里也能看到
+function getBuildVersion() {
+  try {
+    const count = execSync('git rev-list --count HEAD', { cwd: __dirname }).toString().trim();
+    const sha = execSync('git rev-parse --short HEAD', { cwd: __dirname }).toString().trim();
+    return { version: `v0.3.${count}`, sha, count: parseInt(count, 10) };
+  } catch (e) {
+    return { version: 'v0.0.0-dev', sha: 'unknown', count: 0 };
+  }
+}
+
+const BUILD_VERSION = getBuildVersion();
+console.log(`📦 Build version: ${BUILD_VERSION.version} · ${BUILD_VERSION.sha}`);
 
 function copyDirSync(src, dest) {
   if (!fs.existsSync(src)) return;
@@ -47,14 +63,16 @@ module.exports = {
   },
   plugins: [
     new webpack.DefinePlugin({
-      BUILD_TIME: JSON.stringify(new Date().toLocaleString('zh-CN', { 
+      BUILD_TIME: JSON.stringify(new Date().toLocaleString('zh-CN', {
         timeZone: 'Asia/Shanghai',
         year: 'numeric',
-        month: '2-digit', 
+        month: '2-digit',
         day: '2-digit',
         hour: '2-digit',
         minute: '2-digit'
-      }))
+      })),
+      BUILD_VERSION: JSON.stringify(BUILD_VERSION.version),
+      BUILD_SHA: JSON.stringify(BUILD_VERSION.sha),
     }),
     new CopyStaticPlugin()
   ],

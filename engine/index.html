@@ -3163,11 +3163,22 @@
     </div>
 
     <div class="settings-version">
-      <p>v0.2.0 · 16 球员 · 108 卡牌</p>
-      <p id="build-timestamp"></p>
+      <p id="build-timestamp" style="font-family:'SF Mono',Menlo,monospace;font-size:11px;"></p>
+      <p style="font-size:10px;color:var(--text-muted);">16 球员 · 108 卡牌</p>
     </div>
   </div>
   
   <script src="game.bundle.js?v=1780750862222"></script>
+  <!-- 版本号 badge：右下角固定，方便对上 commit -->
+  <div id="version-badge" style="position:fixed;right:6px;bottom:4px;z-index:99;font-size:10px;color:rgba(255,255,255,0.45);background:rgba(0,0,0,0.45);padding:2px 6px;border-radius:4px;font-family:'SF Mono',Menlo,monospace;pointer-events:none;user-select:none;"></div>
+  <script>
+    (function() {
+      var badge = document.getElementById('version-badge');
+      if (badge) {
+        // 先放占位，bundle 加载后会被 Renderer 用真实 BUILD_VERSION 替换
+        badge.textContent = 'loading...';
+      }
+    })();
+  </script>
 </body>
 </html>

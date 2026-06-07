@@ -10,6 +10,7 @@ import { createHost, joinAsGuest, generateRoomId, generatePlayerToken,
 export class RoomHost {
   constructor(game, opts = {}) {
     this.game = game;
+    this.role = 'host';
     this.roomId = opts.roomId || generateRoomId();
     this.bridge = null;
     this.peers = new Map(); // peerId -> { token, slotIndex, name, joined }
@@ -176,6 +177,7 @@ export class RoomHost {
 export class RoomGuest {
   constructor(game, opts = {}) {
     this.game = game;
+    this.role = 'guest';
     this.roomId = opts.roomId;
     this.token = generatePlayerToken();
     this.displayName = opts.displayName || `玩家${Math.floor(Math.random() * 1000)}`;

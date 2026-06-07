@@ -1140,12 +1140,16 @@ export class Renderer {
   }
 
   showBuildTimestamp() {
+    const v = (typeof BUILD_VERSION !== 'undefined') ? BUILD_VERSION : 'v0.0.0-dev';
+    const sha = (typeof BUILD_SHA !== 'undefined') ? BUILD_SHA : '';
+    const t = (typeof BUILD_TIME !== 'undefined') ? BUILD_TIME : '';
+    const text = `${v}${sha ? ' · ' + sha : ''}${t ? ' · ' + t : ''}`;
     if (this.elements.buildTimestamp) {
-      const now = new Date();
-      this.elements.buildTimestamp.textContent = now.toLocaleString('zh-CN', {
-        month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit'
-      });
+      this.elements.buildTimestamp.textContent = text;
     }
+    // 右下角固定 badge — 任何页面状态都能看到，对版本号方便
+    const badge = document.getElementById('version-badge');
+    if (badge) badge.textContent = `${v} · ${sha}`;
   }
 
   updateButtons(gameState) {
