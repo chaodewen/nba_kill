@@ -1488,6 +1488,149 @@
     /* 信息弹窗 */
     .info-modal { z-index: 250; align-items: flex-start; padding-top: 8vh; }
 
+    /* 联机对战弹窗 */
+    .mp-modal { z-index: 280; align-items: flex-start; padding-top: 6vh; }
+    .mp-box {
+      background: var(--bg-card);
+      border-radius: 12px;
+      padding: 18px 22px;
+      max-width: 640px;
+      width: 92%;
+      max-height: 86vh;
+      overflow-y: auto;
+      border: 2px solid var(--primary);
+      box-shadow: 0 0 30px rgba(243, 156, 18, 0.35);
+    }
+    .mp-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+    }
+    .mp-title { font-size: 18px; font-weight: 700; color: var(--primary); }
+    .mp-mode-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+    .mp-mode-btn {
+      padding: 18px 14px;
+      background: var(--bg-secondary);
+      border: 2px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+      text-align: center;
+    }
+    .mp-mode-btn:hover {
+      border-color: var(--primary);
+      background: var(--bg-active);
+      transform: translateY(-2px);
+    }
+    .mp-mode-icon { font-size: 36px; margin-bottom: 6px; }
+    .mp-mode-title { font-size: 15px; font-weight: 700; color: var(--primary); margin-bottom: 6px; }
+    .mp-mode-desc { font-size: 11px; color: var(--text-muted); line-height: 1.6; }
+    .mp-tips {
+      font-size: 12px;
+      color: var(--text-muted);
+      padding: 10px 12px;
+      background: rgba(52, 152, 219, 0.08);
+      border-left: 3px solid #3498db;
+      border-radius: 4px;
+      line-height: 1.6;
+    }
+    .mp-room-id-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+      padding: 12px;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+    }
+    .mp-label { font-size: 12px; color: var(--text-muted); }
+    .mp-room-id {
+      font-size: 24px;
+      font-weight: 800;
+      color: var(--primary);
+      letter-spacing: 4px;
+      font-family: 'SF Mono', Menlo, monospace;
+      flex: 1;
+    }
+    .mp-copy-btn {
+      padding: 6px 12px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.15s;
+    }
+    .mp-copy-btn:hover { background: var(--bg-active); border-color: var(--primary); }
+    .mp-config { display: flex; gap: 12px; margin-bottom: 12px; align-items: center; }
+    .mp-config label { font-size: 13px; color: var(--text); display: flex; align-items: center; gap: 6px; }
+    .mp-config select, .mp-form input {
+      padding: 6px 10px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 13px;
+    }
+    .mp-form { display: flex; flex-direction: column; gap: 12px; margin-bottom: 16px; }
+    .mp-form label { font-size: 13px; display: flex; flex-direction: column; gap: 4px; }
+    .mp-slots {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      margin-bottom: 14px;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+    .mp-slot {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      background: var(--bg-secondary);
+      border-radius: 6px;
+      border: 1px solid var(--border);
+    }
+    .mp-slot-idx {
+      font-size: 12px;
+      color: var(--text-muted);
+      min-width: 36px;
+    }
+    .mp-slot-icon { font-size: 16px; }
+    .mp-slot-name { flex: 1; font-size: 13px; font-weight: 600; }
+    .mp-slot-tag {
+      font-size: 10px;
+      padding: 2px 8px;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+    .mp-slot-tag.tag-host { background: rgba(243, 156, 18, 0.2); color: #f39c12; }
+    .mp-slot-tag.tag-guest { background: rgba(46, 204, 113, 0.2); color: #2ecc71; }
+    .mp-slot-tag.tag-ai { background: rgba(155, 155, 155, 0.2); color: #aaa; }
+    .mp-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    @media (max-width: 768px) {
+      .mp-modal { padding-top: 2vh; }
+      .mp-box { padding: 12px 14px; width: 96%; }
+      .mp-mode-grid { gap: 10px; }
+      .mp-mode-btn { padding: 14px 10px; }
+      .mp-mode-icon { font-size: 30px; }
+      .mp-room-id { font-size: 20px; letter-spacing: 3px; }
+    }
+
     .info-box {
       background: var(--bg-card);
       border-radius: 12px;
@@ -2665,6 +2808,9 @@
         <a class="header-btn" href="players.html" target="_blank" rel="noopener" title="球员图鉴 / 技能详情（新窗口打开）" style="text-decoration:none;">
           <span class="header-btn-icon">🏀</span><span class="header-btn-label">球员</span>
         </a>
+        <button class="header-btn" onclick="game.showMultiplayerModal()" title="联机对战（建房 / 加入房间）">
+          <span class="header-btn-icon">🌐</span><span class="header-btn-label">联机</span>
+        </button>
         <button class="header-btn" onclick="game.showInfoModal()" title="作者信息 / 致谢">
           <span class="header-btn-icon">ℹ️</span><span class="header-btn-label">信息</span>
         </button>
@@ -2799,6 +2945,89 @@
         <div class="info-row">
           <span class="info-label">致谢</span>
           <span class="info-value">感谢老婆对我篮球和游戏事业始终如一的支持，她是这款游戏真正的投资人。</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 联机对战弹窗 -->
+  <div class="modal-overlay mp-modal" id="mp-modal" onclick="game.hideMultiplayerModal(event)">
+    <div class="mp-box" onclick="event.stopPropagation()">
+      <div class="mp-header">
+        <span class="mp-title">🌐 联机对战</span>
+        <button class="card-pick-cancel" onclick="game.hideMultiplayerModal()">关闭 ✕</button>
+      </div>
+      <div class="mp-body">
+        <!-- Step 1: 选模式 -->
+        <div class="mp-step" id="mp-step-choose">
+          <div class="mp-mode-grid">
+            <button class="mp-mode-btn" onclick="game.mpCreateRoom()">
+              <div class="mp-mode-icon">🏠</div>
+              <div class="mp-mode-title">建房</div>
+              <div class="mp-mode-desc">你当房主<br>权威 game state 在你这<br>关浏览器对局结束</div>
+            </button>
+            <button class="mp-mode-btn" onclick="game.mpShowJoinForm()">
+              <div class="mp-mode-icon">🚪</div>
+              <div class="mp-mode-title">加入房间</div>
+              <div class="mp-mode-desc">输入 6 位房号<br>或扫房主分享的二维码</div>
+            </button>
+          </div>
+          <div class="mp-tips">
+            <strong>提示</strong>：联机基于 WebRTC P2P + 公共信令，零后端零账号。
+            房号在全网唯一，你的朋友输房号即可加入（不限同 WiFi）。
+          </div>
+        </div>
+
+        <!-- Step 2A: 房主等待玩家加入 -->
+        <div class="mp-step" id="mp-step-host" style="display:none;">
+          <div class="mp-room-id-row">
+            <span class="mp-label">房号</span>
+            <span class="mp-room-id" id="mp-room-id">------</span>
+            <button class="mp-copy-btn" onclick="game.mpCopyRoomLink()">📋 复制邀请链接</button>
+          </div>
+          <div class="mp-config">
+            <label>总人数 <select id="mp-max-players" onchange="game.mpSetMaxPlayers(this.value)">
+              <option value="4" selected>4 人</option>
+              <option value="5">5 人</option>
+              <option value="6">6 人</option>
+              <option value="7">7 人</option>
+              <option value="8">8 人</option>
+            </select></label>
+          </div>
+          <div class="mp-slots" id="mp-slots">
+            <!-- 玩家槽位由 JS 动态填充 -->
+          </div>
+          <div class="mp-actions">
+            <button class="btn btn-primary" onclick="game.mpStartGame()">▶️ 开始比赛</button>
+            <button class="btn btn-secondary" onclick="game.mpLeaveRoom()">取消房间</button>
+          </div>
+        </div>
+
+        <!-- Step 2B: 加入房间表单 -->
+        <div class="mp-step" id="mp-step-join-form" style="display:none;">
+          <div class="mp-form">
+            <label>房号 <input type="text" id="mp-join-roomid" placeholder="6 位房号 例如 ABC123" maxlength="6" style="text-transform:uppercase;"></label>
+            <label>你的昵称 <input type="text" id="mp-join-nickname" placeholder="不填用随机名" maxlength="12"></label>
+          </div>
+          <div class="mp-actions">
+            <button class="btn btn-primary" onclick="game.mpJoinRoom()">加入</button>
+            <button class="btn btn-secondary" onclick="game.mpBack()">返回</button>
+          </div>
+        </div>
+
+        <!-- Step 2C: 加入者等待房主开始 -->
+        <div class="mp-step" id="mp-step-guest" style="display:none;">
+          <div class="mp-room-id-row">
+            <span class="mp-label">已加入房间</span>
+            <span class="mp-room-id" id="mp-guest-room-id">------</span>
+          </div>
+          <div class="mp-slots" id="mp-guest-slots">
+            <!-- 玩家槽位由 JS 动态填充 -->
+          </div>
+          <div class="mp-tips">⏳ 等待房主开始比赛...</div>
+          <div class="mp-actions">
+            <button class="btn btn-secondary" onclick="game.mpLeaveRoom()">退出房间</button>
+          </div>
         </div>
       </div>
     </div>

@@ -45,6 +45,15 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast(`⚠️ 男声 mp3 没加载到，会用系统女声替代\n${s.message || '未知错误'}`, 'warn', 6000);
     }
   });
+  // URL ?room=ABC123 自动弹联机加入
+  const params = new URLSearchParams(location.search);
+  const room = params.get('room');
+  if (room) {
+    setTimeout(() => {
+      game.showMultiplayerModal();
+      game.mpShowJoinForm();
+    }, 600);
+  }
   // 任何用户手势后解锁 AudioContext（浏览器自动播放策略要求）
   const unlock = () => {
     game.fx?.unlock?.();

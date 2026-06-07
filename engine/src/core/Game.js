@@ -9,6 +9,7 @@ import { SkillSystem } from './Skills';
 import { Renderer } from '../ui/Renderer';
 import { SoundFx } from '../ui/SoundFx';
 import { EventBus, ActionQueue, wrapWithEvents, makeNoopProxy } from './EventBus';
+import { RoomHost, RoomGuest } from '../net/RoomManager';
 import {
   calculateDistance, canAttack, getShaDamage, getRequiredShanCount,
   checkGameOver, getAlivePlayers, getNextAlivePlayer,
@@ -1163,6 +1164,7 @@ export class Game {
 
   // 人类点击下面"受伤"按钮 → 跳过出盖直接受伤
   skipShanResponse() {
+    if (this._forwardIntent('skipShanResponse', [])) return;
     const ctx = this.pendingShanResponse;
     if (!ctx) return;
     this.pendingShanResponse = null;
@@ -2365,7 +2367,18 @@ export class Game {
   }
 
   // 快捷操作
+  // 联机模式：guest 端把"我要做这个"转成 intent 上行给房主，房主权威端执行
+  // 返回 true 表示已转发，调用方应直接 return（不要本地执行 logic）
+  _forwardIntent(name, args) {
+    if (this.mpRoom?.role === 'guest') {
+      this.mpRoom.sendIntent(name, args);
+      return true;
+    }
+    return false;
+  }
+
   playHandCard(playerIndex, cardId) {
+    if (this._forwardIntent('playHandCard', [playerIndex, cardId])) return;
     const player = this.players[playerIndex];
     if (!player?.isHuman) return;
 
@@ -2500,6 +2513,7 @@ export class Game {
   }
 
   selectTarget(targetIndex) {
+    if (this._forwardIntent('selectTarget', [targetIndex])) return;
     const player = this.players[this.currentPlayerIndex];
     const target = this.players[targetIndex];
     if (!player?.isHuman || !this.awaitingHumanAction || this.selectedHandCardIndex === null) return;
@@ -2584,6 +2598,7 @@ export class Game {
   }
 
   quickPlay(cardKey) {
+    if (this._forwardIntent('quickPlay', [cardKey])) return;
     const player = this.players[this.currentPlayerIndex];
     if (!player || this.gameState !== 'playing') return;
     
@@ -2605,6 +2620,7 @@ export class Game {
   }
 
   quickDiscard() {
+    if (this._forwardIntent('quickDiscard', [])) return;
     const player = this.players[this.currentPlayerIndex];
     if (!player || this.gameState !== 'playing') return;
 
@@ -2630,6 +2646,7 @@ export class Game {
   }
 
   quickEndTurn() {
+    if (this._forwardIntent('quickEndTurn', [])) return;
     if (this.gameState !== 'playing') return;
 
     this.stopPlayQueue();
@@ -2645,6 +2662,7 @@ export class Game {
 
   // human 主动技能（出牌阶段限一次的主动技，比如库里三分雨 / 韦德突破 / 杜兰特干拔等）
   useActiveSkill() {
+    if (this._forwardIntent('useActiveSkill', [])) return;
     if (this.gameState !== 'playing') return;
     const player = this.players[this.currentPlayerIndex];
     if (!player?.isHuman || player._activePhaseSkillUsed) return;
@@ -2698,6 +2716,149 @@ export class Game {
   hideInfoModal(event) {
     if (event && event.target && event.target !== this.renderer.elements.infoModal) return;
     this.renderer.elements.infoModal?.classList.remove('show');
+  }
+
+  // ========== 联机对战（v1） ==========
+  // mpRoom = RoomHost | RoomGuest 实例
+  // mpStep = 'choose' | 'host' | 'join-form' | 'guest'
+  showMultiplayerModal() {
+    document.getElementById('mp-modal')?.classList.add('show');
+    this._mpShowStep('choose');
+  }
+
+  hideMultiplayerModal(event) {
+    const modal = document.getElementById('mp-modal');
+    if (event && event.target && event.target !== modal) return;
+    modal?.classList.remove('show');
+  }
+
+  _mpShowStep(step) {
+    ['choose', 'host', 'join-form', 'guest'].forEach(s => {
+      const el = document.getElementById(`mp-step-${s}`);
+      if (el) el.style.display = (s === step) ? 'block' : 'none';
+    });
+  }
+
+  mpBack() { this._mpShowStep('choose'); }
+
+  async mpCreateRoom() {
+    if (this.mpRoom) {
+      this.renderer.addLog('已经在房间里了，请先退出', 'system');
+      return;
+    }
+    try {
+      this.mpRoom = new RoomHost(this, {
+        maxPlayers: 4,
+        onChange: () => this._mpRenderHostSlots(),
+      });
+      await this.mpRoom.start();
+      document.getElementById('mp-room-id').textContent = this.mpRoom.roomId;
+      this._mpShowStep('host');
+      this._mpRenderHostSlots();
+      this.renderer.addLog(`🌐 房间已创建：${this.mpRoom.roomId}（等待玩家加入）`, 'system');
+    } catch (e) {
+      this.renderer.addLog(`❌ 建房失败：${e.message || e}`, 'system');
+      console.error(e);
+    }
+  }
+
+  mpShowJoinForm() {
+    this._mpShowStep('join-form');
+    // 如果 URL 有 ?room=xxx，预填
+    const params = new URLSearchParams(location.search);
+    const r = params.get('room');
+    if (r) document.getElementById('mp-join-roomid').value = r.toUpperCase();
+  }
+
+  async mpJoinRoom() {
+    if (this.mpRoom) {
+      this.renderer.addLog('已经在房间里了，请先退出', 'system');
+      return;
+    }
+    const roomId = document.getElementById('mp-join-roomid').value.trim().toUpperCase();
+    const nickname = document.getElementById('mp-join-nickname').value.trim();
+    if (!roomId || roomId.length < 4) {
+      alert('请输入有效房号');
+      return;
+    }
+    try {
+      this.mpRoom = new RoomGuest(this, {
+        roomId, displayName: nickname || undefined,
+        onChange: () => this._mpRenderGuestSlots(),
+      });
+      await this.mpRoom.start();
+      document.getElementById('mp-guest-room-id').textContent = roomId;
+      this._mpShowStep('guest');
+      this.renderer.addLog(`🌐 已加入房间 ${roomId}（等待房主开始）`, 'system');
+    } catch (e) {
+      this.renderer.addLog(`❌ 加入失败：${e.message || e}`, 'system');
+      console.error(e);
+      this.mpRoom = null;
+    }
+  }
+
+  mpStartGame() {
+    if (!this.mpRoom || this.mpRoom.role !== 'host') return;
+    this.mpRoom.startGame();
+    this.mpRoom.beginStateSync();
+    this.hideMultiplayerModal();
+    this.renderer.addLog('▶️ 比赛开始（联机模式 · 房主权威）', 'system');
+  }
+
+  mpSetMaxPlayers(n) {
+    const v = parseInt(n, 10);
+    if (this.mpRoom?.role === 'host' && v >= 4 && v <= 8) {
+      this.mpRoom.setMaxPlayers(v);
+    }
+  }
+
+  mpLeaveRoom() {
+    if (!this.mpRoom) return;
+    this.mpRoom.leave();
+    this.mpRoom = null;
+    this._mpShowStep('choose');
+    this.renderer.addLog('已退出联机房间', 'system');
+  }
+
+  mpCopyRoomLink() {
+    if (!this.mpRoom) return;
+    const url = `${location.origin}${location.pathname}?room=${this.mpRoom.roomId}`;
+    navigator.clipboard?.writeText?.(url).then(() => {
+      this.renderer.addLog(`已复制邀请链接：${url}`, 'system');
+    }).catch(() => {
+      // fallback
+      prompt('复制下面的链接发给朋友：', url);
+    });
+  }
+
+  _mpRenderHostSlots() {
+    if (!this.mpRoom || this.mpRoom.role !== 'host') return;
+    const slots = this.mpRoom._buildSlots();
+    const html = slots.map(s => `
+      <div class="mp-slot">
+        <span class="mp-slot-idx">#${s.index}</span>
+        <span class="mp-slot-icon">${s.kind === 'host' ? '👑' : s.kind === 'guest' ? '🎮' : '🤖'}</span>
+        <span class="mp-slot-name">${this._escape(s.name)}</span>
+        <span class="mp-slot-tag tag-${s.kind}">${s.kind === 'host' ? '房主' : s.kind === 'guest' ? '玩家' : 'AI'}</span>
+      </div>`).join('');
+    document.getElementById('mp-slots').innerHTML = html;
+  }
+
+  _mpRenderGuestSlots() {
+    if (!this.mpRoom || this.mpRoom.role !== 'guest') return;
+    const slots = this.mpRoom.meta?.slots || [];
+    const html = slots.map(s => `
+      <div class="mp-slot">
+        <span class="mp-slot-idx">#${s.index}</span>
+        <span class="mp-slot-icon">${s.kind === 'host' ? '👑' : s.kind === 'guest' ? '🎮' : '🤖'}</span>
+        <span class="mp-slot-name">${this._escape(s.name)}</span>
+        <span class="mp-slot-tag tag-${s.kind}">${s.kind === 'host' ? '房主' : s.kind === 'guest' ? '玩家' : 'AI'}</span>
+      </div>`).join('');
+    document.getElementById('mp-guest-slots').innerHTML = html;
+  }
+
+  _escape(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
   nextGuide() {
