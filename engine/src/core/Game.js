@@ -1063,49 +1063,36 @@ export class Game {
     this.renderer.flashCardPlay(player, '单挑', '#e67e22');
     this.fireSingleTargetScroll(player, target, card);
 
-    // 默认每边 1 张投；NBA 球员的施压技能由技能系统处理
-    const needShaCount = 1;
-    const playerShaCount = player.handCards.filter(c => c.key === 'sha').length;
-    const targetShaCount = target.handCards.filter(c => c.key === 'sha').length;
-    
-    setTimeout(() => {
-      const playerCanWin = playerShaCount >= needShaCount;
-      const targetCanWin = targetShaCount >= needShaCount;
-      
-      if (playerCanWin && targetCanWin) {
-        // 双方都有投，各出一张
-        const pIdx = player.handCards.findIndex(c => c.key === 'sha');
-        const tIdx = target.handCards.findIndex(c => c.key === 'sha');
-        if (pIdx !== -1) {
-          const sha = player.handCards.splice(pIdx, 1)[0];
-          this.deck.discard(sha);
-          this.renderer.addLog(`${player.character.name} 打出【投】`, 'normal');
-        }
-        if (tIdx !== -1) {
-          const sha = target.handCards.splice(tIdx, 1)[0];
-          this.deck.discard(sha);
-          this.renderer.addLog(`${target.character.name} 打出【投】`, 'normal');
-        }
-        this.renderer.addLog('决斗平局', 'normal');
-      } else if (playerCanWin || !targetCanWin) {
-        target.takeDamage(1);
-        this.renderer.flashHpDelta?.(target, -1);
-        this.renderer.updatePlayer(target);
-        this.renderer.addLog(`${target.character.name} 无法出【投】，受到 1 点伤害`, 'play');
-        this.checkDeath(target, player);
-      } else {
-        player.takeDamage(1);
-        this.renderer.flashHpDelta?.(player, -1);
-        this.renderer.updatePlayer(player);
-        this.renderer.addLog(`${player.character.name} 无法出【投】，受到 1 点伤害`, 'play');
-        this.checkDeath(player, target);
+    // 决斗规则：被使用方（target）先出【投】，然后 source，交替直到一方无法响应；
+    // 决斗中出的【投】不计入回合"每回合一张投"限制（不动 hasUsedSha）
+    const round = (current, other) => {
+      const shaIdx = current.handCards.findIndex(c => c.key === 'sha');
+      if (shaIdx === -1) {
+        // current 无法出 → 受 1 点伤害
+        current.takeDamage(1);
+        this.renderer.flashHpDelta?.(current, -1);
+        this.renderer.updatePlayer(current);
+        this.renderer.addLog(`${current.character.name} 无法出【投】，受到 1 点伤害`, 'play');
+        this.checkDeath(current, other);
+        setTimeout(() => {
+          if (!card.isVirtual) this.deck.discard(card);
+          this.renderer.updatePlayer(player);
+          this.renderer.updatePlayer(target);
+          this.renderer.updateUI(this);
+          this.continueAfterCard(player, 400);
+        }, 1200);
+        return;
       }
-      
-      this.renderer.updatePlayer(player);
-      this.renderer.updatePlayer(target);
-      this.renderer.updateUI(this);
-      this.continueAfterCard(player, 400);
-    }, 2000);
+      const sha = current.handCards.splice(shaIdx, 1)[0];
+      this.discardWithFlash(sha, current);
+      this.renderer.flashCardPlay(current, '投', '#e74c3c');
+      this.renderer.addLog(`${current.character.name} 打出【投】`, 'normal');
+      this.renderer.updatePlayer(current);
+      setTimeout(() => round(other, current), 1500);
+    };
+
+    // target 先响应（被指定方先打投）
+    setTimeout(() => round(target, player), 1500);
   }
 
   // 触发 used_single_target_scroll — 用于 Manu 奇袭（指定唯一目标的锦囊后令目标弃 1 张）
