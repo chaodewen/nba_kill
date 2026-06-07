@@ -1906,8 +1906,10 @@
       .app[data-players="8"] .bottom-panel { width: 24%; }
     }
 
-    /* 移动端 / 平板（< 900px）：列布局，bottom-panel 变成底部条带，对手卡缩小 */
-    @media (max-width: 899px) {
+    /* ============================================================ */
+    /* 中型屏（平板 / 小笔记本，769-899px）—— 桌面列布局，但元素压缩 */
+    /* ============================================================ */
+    @media (min-width: 769px) and (max-width: 899px) {
       .header { padding: 4px 8px; }
       .header-btn { padding: 5px 10px; gap: 4px; }
       .header-btn-label { display: none; }
@@ -1942,21 +1944,151 @@
       .quick-actions { gap: 4px; }
     }
 
-    /* 手机竖屏（< 600px）：进一步压缩 */
-    @media (max-width: 599px) {
+    /* ============================================================ */
+    /* 手机端（≤768px，最低支持 iPhone 16 = 393×852） */
+    /* 完全重写布局：opp 区改横向滚动 flex，弧形定位禁用，所有信息内聚 */
+    /* ============================================================ */
+    @media (max-width: 768px) {
+      /* —— 全局基础 —— */
+      html, body { font-size: 13px; }
+      .main { padding: 3px; gap: 3px; }
+
+      /* —— Header —— */
+      .header { padding: 4px 6px; gap: 4px; }
+      .logo-svg { width: 30px !important; height: 30px !important; }
       .logo h1 { display: none; }
-      .header-btn { padding: 5px 8px; }
-      .opponents-area .opp-seat {
-        width: clamp(95px, 26%, 140px) !important;
-        height: clamp(100px, 14vh, 128px) !important;
+      .deck-info { display: none; }
+      .header-right { gap: 4px; }
+      .header-btn { padding: 5px 8px; gap: 0; }
+      .header-btn-label { display: none; }
+      .header-btn-icon { font-size: 16px; }
+      .status-badge { padding: 2px 6px; font-size: 9px; }
+
+      /* —— 回合栏 —— */
+      .turn-bar { padding: 4px 8px; }
+      .turn-number { font-size: 12px; }
+
+      /* —— Opp 区改横向滚动 flex（绝对位置弧形禁用） —— */
+      .opponents-area {
+        position: relative;
+        display: flex !important;
+        flex-direction: row !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        gap: 5px;
+        padding: 3px 4px;
+        align-items: center;
+        flex: 0 0 auto !important;
+        height: clamp(125px, 18vh, 150px) !important;
+        scrollbar-width: thin;
+        -webkit-overflow-scrolling: touch;
       }
+      .opponents-area .opp-seat {
+        position: relative !important;
+        left: auto !important;
+        top: auto !important;
+        transform: none !important;
+        width: 105px !important;
+        height: 100% !important;
+        flex-shrink: 0 !important;
+      }
+
+      /* —— 玩家卡内部紧凑内聚 —— */
+      .player-card { padding: 4px 6px !important; gap: 2px !important; min-height: 0 !important; }
+      .player-header { gap: 5px !important; margin-bottom: 2px !important; align-items: center !important; }
+      .opp-seat .player-card { padding-bottom: 0 !important; }
+      .player-avatar-wrap { gap: 2px !important; }
+      .player-avatar { width: 30px !important; height: 30px !important; font-size: 13px !important; border-width: 2px !important; }
+      .position-tag { font-size: 9px !important; padding: 1px 5px !important; letter-spacing: 0 !important; margin: 0 !important; }
+      .identity-tag { font-size: 9px !important; padding: 1px 5px !important; letter-spacing: 0 !important; }
+      .distance-tag { font-size: 10px !important; padding: 1px 5px !important; min-width: 16px !important; top: 2% !important; right: 2% !important; }
+      .player-name { font-size: 11px !important; }
+      .player-skill { font-size: 9px !important; line-height: 1.2 !important; }
       .opp-seat .player-skill { display: none; }
-      .human-card-wrap { flex: 0 0 42%; }
-      .mini-card { width: 52px; height: 70px; }
-      .mini-card-name { font-size: 10px; }
-      .target-banner { font-size: 12px; padding: 6px 8px; }
-      .center-discard-stack .stack-back { width: 42px; height: 60px; margin-left: -32px; }
-      .center-discard-stack .stack-count { font-size: 12px; padding: 3px 10px; }
+      .hp-display { font-size: 12px !important; margin-bottom: 0 !important; gap: 1px !important; }
+      .hp-number { font-size: 14px !important; }
+      .equipment-bar { gap: 2px !important; flex-wrap: wrap !important; }
+      .equip-tag { font-size: 9px !important; padding: 1px 4px !important; }
+
+      /* opp 手牌堆按比例固定底部 */
+      .opp-seat .hand-section {
+        bottom: 6% !important;
+        height: 22% !important;
+        left: 2% !important;
+        right: 2% !important;
+      }
+      .opp-seat .hand-stacked { padding-left: 12px; }
+      .opp-seat .hand-back { width: 18px !important; height: 24px !important; margin-left: -10px !important; }
+      .opp-seat .hand-back::after { font-size: 10px !important; }
+      .opp-seat .hand-back.hand-back-count::after { font-size: 11px !important; }
+
+      /* —— 屏幕中央弃牌堆迷你化 —— */
+      .center-discard-stack {
+        top: auto !important;
+        bottom: 4px !important;
+        left: 50% !important;
+        transform: translateX(-50%) !important;
+      }
+      .center-discard-stack .stack-back { width: 32px !important; height: 44px !important; margin-left: -22px !important; }
+      .center-discard-stack .stack-back::after { font-size: 14px !important; }
+      .center-discard-stack .stack-count { font-size: 10px !important; padding: 2px 8px !important; margin-left: 10px !important; }
+
+      /* —— Human 区紧凑 —— */
+      .human-section {
+        min-height: 130px !important;
+        padding: 4px !important;
+        gap: 4px !important;
+      }
+      .human-card-wrap {
+        flex: 0 0 clamp(120px, 36%, 150px) !important;
+      }
+      .human-hand-wrap { gap: 4px !important; }
+      .human-hand {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        min-height: 70px !important;
+        max-height: 80px !important;
+        padding: 4px 6px !important;
+        -webkit-overflow-scrolling: touch;
+      }
+      .mini-card { width: 56px !important; height: 70px !important; padding: 2px !important; gap: 2px !important; }
+      .mini-card-suit { font-size: 16px !important; }
+      .mini-card-name { font-size: 10px !important; line-height: 1.1 !important; }
+
+      .human-actions { gap: 5px !important; padding: 0 !important; }
+      .human-actions .quick-btn { padding: 6px 4px !important; font-size: 11px !important; min-height: 28px !important; }
+
+      /* —— Bottom panel 收成 22vh 底条带 —— */
+      .bottom-panel {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: none !important;
+        max-height: 22vh;
+        flex: 0 0 auto !important;
+      }
+      .control-bar { gap: 4px !important; padding: 4px !important; }
+      .control-bar .btn { padding: 6px 10px !important; font-size: 12px !important; }
+      .player-count-select { font-size: 12px !important; padding: 4px 6px !important; }
+
+      .log-content-inner { padding: 4px 8px !important; font-size: 11px !important; line-height: 1.45 !important; }
+      .log-entry { padding: 3px 5px !important; margin: 1px 0 !important; }
+
+      /* —— 模态弹窗适配窄屏 —— */
+      .modal-box.skill-layout {
+        grid-template-columns: 130px 1fr !important;
+        gap: 8px !important;
+        max-width: 96vw !important;
+        padding: 10px 12px !important;
+      }
+      .modal-box.skill-layout .modal-image,
+      .modal-box.skill-layout .modal-image-fallback {
+        width: 130px !important;
+        height: 160px !important;
+      }
+
+      /* target-banner / settings panel 缩小 */
+      .target-banner { font-size: 12px !important; padding: 6px 8px !important; gap: 6px !important; }
+      .settings-panel { width: 80vw !important; right: -85vw; padding: 12px !important; }
     }
   </style>
 </head>
