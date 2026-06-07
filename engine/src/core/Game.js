@@ -930,25 +930,27 @@ export class Game {
       }
 
       if (decision.useShan) {
-        // 优先用真盖；不够时若是 Battier 用黑色手牌补（站位）
-        const shanCount = Math.min(decision.count, target.handCards.filter(c => c.key === 'shan').length);
-        for (let i = 0; i < shanCount; i++) {
-          const idx = target.handCards.findIndex(c => c.key === 'shan');
-          if (idx !== -1) {
-            const shan = target.handCards.splice(idx, 1)[0];
-            this.discardWithFlash(shan, target);
+        // 人类点了某张盖时已经在 playHandCard 里消耗过；只有 AI 自动决策才在这里消耗
+        if (!decision.shanAlreadyConsumed) {
+          const shanCount = Math.min(decision.count, target.handCards.filter(c => c.key === 'shan').length);
+          for (let i = 0; i < shanCount; i++) {
+            const idx = target.handCards.findIndex(c => c.key === 'shan');
+            if (idx !== -1) {
+              const shan = target.handCards.splice(idx, 1)[0];
+              this.discardWithFlash(shan, target);
+            }
           }
-        }
-        // Battier 站位：真盖不够则用黑色手牌补
-        let extraNeeded = decision.count - shanCount;
-        const isBattier = target.character?.key === 'shane_battier';
-        if (extraNeeded > 0 && isBattier) {
-          for (let i = 0; i < extraNeeded; i++) {
-            const idx = target.handCards.findIndex(c => c.key !== 'shan' && (c.suit === 'spade' || c.suit === 'club'));
-            if (idx === -1) break;
-            const c = target.handCards.splice(idx, 1)[0];
-            this.discardWithFlash(c, target);
-            this.renderer.addLog(`✨ ${target.character.name} 触发【站位】，将黑色手牌【${c.name}】当【盖】使用`, 'skill');
+          // Battier 站位：真盖不够则用黑色手牌补
+          let extraNeeded = decision.count - shanCount;
+          const isBattier = target.character?.key === 'shane_battier';
+          if (extraNeeded > 0 && isBattier) {
+            for (let i = 0; i < extraNeeded; i++) {
+              const idx = target.handCards.findIndex(c => c.key !== 'shan' && (c.suit === 'spade' || c.suit === 'club'));
+              if (idx === -1) break;
+              const c = target.handCards.splice(idx, 1)[0];
+              this.discardWithFlash(c, target);
+              this.renderer.addLog(`✨ ${target.character.name} 触发【站位】，将黑色手牌【${c.name}】当【盖】使用`, 'skill');
+            }
           }
         }
         this.renderer.addLog(`🛡️ ${target.character.name} 使用 ${decision.count} 张【盖】盖避成功`, 'normal');
@@ -1024,39 +1026,54 @@ export class Game {
     }, 2000);
     };
 
-    // 人类作为目标时，让玩家自己选是否出盖（不再自动）
+    // 人类作为目标时，让玩家自己选是否出盖（不再用模态弹窗，改成 banner + 手牌点击）
     if (target.isHuman && !unblockable) {
       const hasShan = target.handCards.some(c => c.key === 'shan');
       const hasBaguaArmor = typeof target.hasBagua === 'function' && target.hasBagua();
-      // Battier 站位 — 黑色手牌也算
       const battierBlackShan = target.character?.key === 'shane_battier'
         && target.handCards.some(c => c.key !== 'shan' && (c.suit === 'spade' || c.suit === 'club'));
-      if (hasShan || hasBaguaArmor || battierBlackShan) {
-        const text = hasShan
-          ? `你有 ${target.handCards.filter(c => c.key === 'shan').length} 张【盖】，出盖抵消？`
-          : (battierBlackShan
-              ? `你的【站位】允许把黑色手牌当【盖】，出盖抵消？`
-              : `你装备了【运动眼镜】（联防体系），是否触发判定？`);
-        this.renderer.showConfirm(
-          `⚔️ ${player.character.name} 对你出【投】！`,
-          text,
-          () => {
-            if (hasShan || battierBlackShan) decision.useShan = true;
-            else if (hasBaguaArmor) decision.useBagua = true;
+      const canRespond = hasShan || battierBlackShan;
+      if (canRespond || hasBaguaArmor) {
+        this.pendingShanResponse = {
+          target, source: player, card,
+          onShan: (alreadyConsumed) => {
+            decision.useShan = true;
+            decision.useBagua = false;
+            decision.shanAlreadyConsumed = !!alreadyConsumed;
             proceedShaResolution();
           },
-          () => {
+          onBagua: () => {
+            decision.useShan = false;
+            decision.useBagua = true;
+            proceedShaResolution();
+          },
+          onSkip: () => {
             decision.useShan = false;
             decision.useBagua = false;
             proceedShaResolution();
-          }
-        );
-        this.renderer.elements.confirmBtn.onclick = () => this.renderer.confirmAction();
+          },
+        };
+        this.renderer.showShanResponseBanner(player.character.name, 1);
+        if (canRespond) this.renderer.markShanCandidates(target);
+        // 如果有 bagua 但没 shan，自动按 bagua 走（不需要选）
+        if (!canRespond && hasBaguaArmor) {
+          // 1.2s 后自动出 bagua（让用户看到提示）
+          setTimeout(() => this.pendingShanResponse?.onBagua?.(), 1200);
+        }
         return;
       }
     }
 
     proceedShaResolution();
+  }
+
+  // 人类点击下面"受伤"按钮 → 跳过出盖直接受伤
+  skipShanResponse() {
+    const ctx = this.pendingShanResponse;
+    if (!ctx) return;
+    this.pendingShanResponse = null;
+    this.renderer.hideTargetBanner();
+    ctx.onSkip();
   }
 
   handleTao(player, target) {
@@ -2172,7 +2189,38 @@ export class Game {
   // 快捷操作
   playHandCard(playerIndex, cardId) {
     const player = this.players[playerIndex];
-    if (!player?.isHuman || !this.awaitingHumanAction || this.currentPlayerIndex !== playerIndex) return;
+    if (!player?.isHuman) return;
+
+    // 优先级：响应出盖模式（pendingShanResponse） — 即便不是当前回合也允许（被指定方）
+    if (this.pendingShanResponse && this.pendingShanResponse.target === player) {
+      const card = player.handCards.find(c => c.id === cardId);
+      if (!card) return;
+      const isBattier = player.character?.key === 'shane_battier';
+      const canRespond = card.key === 'shan'
+        || (isBattier && (card.suit === 'spade' || card.suit === 'club'));
+      if (!canRespond) {
+        this.renderer.flashRejected(playerIndex, '只能出【盖】响应，或点"受伤"');
+        return;
+      }
+      // 先消耗这张响应牌（盖 / Battier 黑色手牌）
+      const idx = player.handCards.findIndex(c => c.id === cardId);
+      if (idx === -1) return;
+      const used = player.handCards.splice(idx, 1)[0];
+      this.discardWithFlash(used, player);
+      if (used.key !== 'shan') {
+        this.renderer.addLog(`✨ ${player.character.name} 触发【站位】，将【${used.name}】当【盖】使用`, 'skill');
+      }
+      // 标记本次响应已用 1 张盖（决斗等多张响应用 _shanResponseUsed 累计；常规 sha 用 1 张即可）
+      this.renderer.updatePlayer(player);
+      const ctx = this.pendingShanResponse;
+      this.pendingShanResponse = null;
+      this.renderer.hideTargetBanner();
+      // onShan 内部会执行 finishDodged + flashCardPlay 等；告诉它"我已经消耗过了"
+      ctx.onShan(true);
+      return;
+    }
+
+    if (!this.awaitingHumanAction || this.currentPlayerIndex !== playerIndex) return;
 
     const cardIndex = player.handCards.findIndex(c => c.id === cardId);
     if (cardIndex === -1) return;

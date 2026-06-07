@@ -631,12 +631,62 @@ export class Renderer {
       this.elements.targetBannerText.textContent = message;
     }
     this.elements.targetBanner.style.display = 'flex';
+    // 默认是"取消"模式
+    const cancelBtn = document.getElementById('target-banner-cancel');
+    const skipBtn = document.getElementById('target-banner-skip');
+    if (cancelBtn) cancelBtn.style.display = '';
+    if (skipBtn) skipBtn.style.display = 'none';
+  }
+
+  // 响应出盖的提示横幅：替换 cancel 为 受伤 按钮
+  showShanResponseBanner(attackerName, hpAtRisk = 1) {
+    if (!this.elements.targetBanner) return;
+    if (this.elements.targetBannerText) {
+      this.elements.targetBannerText.textContent = `🛡️ ${attackerName} 对你出【投】 — 点亮蓝色【盖】响应，或点「受伤」承受 ${hpAtRisk} 点`;
+    }
+    this.elements.targetBanner.style.display = 'flex';
+    const cancelBtn = document.getElementById('target-banner-cancel');
+    const skipBtn = document.getElementById('target-banner-skip');
+    if (cancelBtn) cancelBtn.style.display = 'none';
+    if (skipBtn) {
+      skipBtn.style.display = '';
+      skipBtn.textContent = `😣 受伤 (-${hpAtRisk})`;
+    }
   }
 
   hideTargetBanner() {
     if (!this.elements.targetBanner) return;
     this.elements.targetBanner.style.display = 'none';
     this.clearTargetCandidates();
+    this.clearShanCandidates();
+  }
+
+  // 标记 / 清除人类手牌中可作为出盖响应的卡（盖 + Battier 黑色手牌）
+  markShanCandidates(humanPlayer) {
+    const handEl = document.getElementById('human-hand');
+    if (!handEl || !humanPlayer) return;
+    const isBattier = humanPlayer.character?.key === 'shane_battier';
+    const minis = handEl.querySelectorAll('.mini-card');
+    minis.forEach((el, i) => {
+      const card = humanPlayer.handCards[i];
+      if (!card) return;
+      const canRespond = card.key === 'shan'
+        || (isBattier && card.key !== 'shan' && (card.suit === 'spade' || card.suit === 'club'));
+      if (canRespond) {
+        el.classList.add('shan-response-candidate');
+        el.classList.remove('shan-response-locked');
+      } else {
+        el.classList.add('shan-response-locked');
+        el.classList.remove('shan-response-candidate');
+      }
+    });
+  }
+
+  clearShanCandidates() {
+    document.querySelectorAll('.mini-card').forEach(el => {
+      el.classList.remove('shan-response-candidate');
+      el.classList.remove('shan-response-locked');
+    });
   }
 
   markTargetCandidates(playerIndices) {

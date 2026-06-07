@@ -284,6 +284,34 @@
       font-size: 13px;
     }
     .target-banner-cancel:hover { background: rgba(0,0,0,0.4); }
+    .target-banner-skip {
+      background: rgba(231, 76, 60, 0.85);
+      color: #fff;
+      border: 1px solid rgba(255,255,255,0.3);
+      padding: 5px 14px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+      transition: all 0.15s;
+    }
+    .target-banner-skip:hover { background: rgba(231, 76, 60, 1); transform: translateY(-1px); }
+
+    /* 出盖响应模式：人类玩家手牌中的【盖】高亮，其它牌灰化 */
+    .mini-card.shan-response-candidate {
+      animation: shan-pulse 1.2s ease-in-out infinite;
+      outline: 3px solid #38bdf8;
+      outline-offset: 2px;
+    }
+    @keyframes shan-pulse {
+      0%, 100% { box-shadow: 0 0 0 rgba(56, 189, 248, 0); }
+      50% { box-shadow: 0 0 16px rgba(56, 189, 248, 0.7); }
+    }
+    .mini-card.shan-response-locked {
+      opacity: 0.35;
+      filter: grayscale(60%);
+      cursor: not-allowed;
+    }
 
     @keyframes target-banner-pulse {
       0%, 100% { box-shadow: 0 0 16px rgba(243, 156, 18, 0.5); }
@@ -2384,7 +2412,8 @@
         <div class="target-banner" id="target-banner" style="display:none;">
           <span class="target-banner-icon">🎯</span>
           <span class="target-banner-text" id="target-banner-text">请选择目标球员</span>
-          <button class="target-banner-cancel" onclick="game.cancelTargetSelection()">取消</button>
+          <button class="target-banner-cancel" id="target-banner-cancel" onclick="game.cancelTargetSelection()">取消</button>
+          <button class="target-banner-skip" id="target-banner-skip" onclick="game.skipShanResponse()" style="display:none;">😣 受伤</button>
         </div>
 
         <!-- 玩家区域 -->
