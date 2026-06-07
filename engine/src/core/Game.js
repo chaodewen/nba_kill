@@ -2477,6 +2477,8 @@ export class Game {
     if (player?.isHuman) {
       this.awaitingHumanAction = false;
       this.cancelTargetSelection();
+      this.fx?.play?.('card_play');
+      this.fx?.speak?.('结束回合');
     }
     this.discardPhase(player);
   }
