@@ -96,7 +96,7 @@ export class Game {
 
     // 检查是否显示新手引导
     if (realRenderer.shouldShowGuide()) {
-      setTimeout(() => realRenderer.showGuide(), 500);
+      this.schedule(() => realRenderer.showGuide(), 500);
     }
   }
 
@@ -123,6 +123,19 @@ export class Game {
   }
 
   // ========== 工具方法 ==========
+
+  // 抽象 setTimeout：所有游戏内"延时下一步"都走 this.schedule(fn, ms)，便于：
+  //   1. 测试时用 vitest fake timers 完整接管
+  //   2. headless / 多人对战房主端用真 setTimeout
+  //   3. 远端纯渲染端可以替换成 event-driven 时序回放（远端不真自己 setTimeout，跟随房主事件流）
+  schedule(fn, ms = 0) {
+    if (typeof setTimeout !== 'undefined') {
+      return setTimeout(fn, ms);
+    }
+    // 极端兜底：没有 setTimeout 环境，立即同步执行（不应该发生）
+    try { fn(); } catch (e) {}
+    return null;
+  }
 
   getAlivePlayers() {
     return getAlivePlayers(this.players);
@@ -227,10 +240,10 @@ export class Game {
     // 开局宏大号角 + 中文 TTS 喊话（魔兽风 fanfare）
     this.fx?.unlock?.();
     this.fx?.playFanfare?.();
-    setTimeout(() => this.fx?.speak?.('比赛开始！'), 300);
+    this.schedule(() => this.fx?.speak?.('比赛开始！'), 300);
 
     // 开始第一个回合（fanfare 约 2.6s，给 3s 让玩家听完再开打）
-    setTimeout(() => this.startTurn(), 3000);
+    this.schedule(() => this.startTurn(), 3000);
   }
 
   // 根据人数生成本局身份分配（全部打乱，人类玩家落到哪个身份完全随机）
@@ -483,7 +496,7 @@ export class Game {
         const handled = this.applySkillResult(player, r);
         if (handled) {
           // 主动技占用 ~1.5s 时间窗，完后继续走 aiPlayCards
-          setTimeout(() => this.aiPlayCards(player), 1500);
+          this.schedule(() => this.aiPlayCards(player), 1500);
           return;
         }
       }
@@ -525,7 +538,7 @@ export class Game {
     }
     // 全局节奏：默认 5x（400 × 5 = 2000ms / 动作）；通过 paceMultiplier 设置切换 0.5x / 1x / 2x
     const PACE_MULTIPLIER = 5 * (this.paceMultiplier ? this.paceMultiplier / 2 : 1);
-    setTimeout(() => {
+    this.schedule(() => {
       // 防 stale：fire 时回合已切换则不继续
       if (this.players[this.currentPlayerIndex] !== player) return;
       this.executePlayQueue(player);
@@ -978,7 +991,7 @@ export class Game {
     };
 
     const proceedShaResolution = () => {
-      setTimeout(() => {
+      this.schedule(() => {
       if (decision.useBagua) {
         const judgeCard = this.deck.judge();
         const isRed = judgeCard && (judgeCard.suit === 'heart' || judgeCard.suit === 'diamond');
@@ -1132,7 +1145,7 @@ export class Game {
         // 如果有 bagua 但没 shan，自动按 bagua 走（不需要选）
         if (!canRespond && hasBaguaArmor) {
           // 1.2s 后自动出 bagua（让用户看到提示）
-          setTimeout(() => this.pendingShanResponse?.onBagua?.(), 1200);
+          this.schedule(() => this.pendingShanResponse?.onBagua?.(), 1200);
         }
         return;
       }
@@ -1206,7 +1219,7 @@ export class Game {
         this.renderer.updatePlayer(current);
         this.renderer.addLog(`${current.character.name} 无法出【投】，受到 1 点伤害`, 'play');
         this.checkDeath(current, other);
-        setTimeout(() => {
+        this.schedule(() => {
           if (!card.isVirtual) this.deck.discard(card);
           this.renderer.updatePlayer(player);
           this.renderer.updatePlayer(target);
@@ -1229,7 +1242,7 @@ export class Game {
         this.renderer.flashCardPlay(current, '投', '#e74c3c');
         this.renderer.addLog(`${current.character.name} 打出【投】`, 'normal');
         this.renderer.updatePlayer(current);
-        setTimeout(() => round(other, current), 1500);
+        this.schedule(() => round(other, current), 1500);
       };
 
       // human 当出投方：banner + 点投牌选 / 受伤按钮
@@ -1254,7 +1267,7 @@ export class Game {
     };
 
     // target 先响应（被指定方先打投）
-    setTimeout(() => round(target, player), 1500);
+    this.schedule(() => round(target, player), 1500);
   }
 
   // 触发 used_single_target_scroll — 用于 Manu 奇袭（指定唯一目标的锦囊后令目标弃 1 张）
@@ -1454,7 +1467,7 @@ export class Game {
       this.renderer.updateUI(this);
       const remaining = (ctx.remaining || 1) - 1;
       if (remaining > 0) {
-        setTimeout(() => this.openSelfDiscardPick(source, remaining), 250);
+        this.schedule(() => this.openSelfDiscardPick(source, remaining), 250);
       } else {
         this.endPhase(source);
       }
@@ -1533,7 +1546,7 @@ export class Game {
     }
     const p = targets[idx];
     if (!p.isAlive) {
-      setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 100);
+      this.schedule(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 100);
       return;
     }
 
@@ -1550,7 +1563,7 @@ export class Game {
       this.renderer.updatePlayer(p);
       this.renderer.updateUI(this);
       // 间隔从 2s → 2.5s，让玩家看清楚每个目标的响应再切下一个
-      setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2500);
+      this.schedule(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2500);
     };
 
     const useResponseCard = () => {
@@ -1567,7 +1580,7 @@ export class Game {
       this.checkDeath(p, source);
       this.renderer.updatePlayer(p);
       this.renderer.updateUI(this);
-      setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2500);
+      this.schedule(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2500);
     };
 
     // 人类作为目标：复用 pendingShanResponse 模式 — banner + 手牌点击 + 受伤按钮
@@ -1783,7 +1796,7 @@ export class Game {
           id: -Date.now() - Math.random(),
           isVirtual: true,
         };
-        setTimeout(() => this.handleWanjian(player, virtualWanjian), 1000);
+        this.schedule(() => this.handleWanjian(player, virtualWanjian), 1000);
         return true;
       }
 
@@ -1796,7 +1809,7 @@ export class Game {
             const c = player.handCards.shift();
             this.discardWithFlash(c, player);
             log(`将【${c.name}】当【佳得乐】使用`);
-            setTimeout(() => this.handleTao(player, player), 800);
+            this.schedule(() => this.handleTao(player, player), 800);
             return true;
           }
         }
@@ -1817,7 +1830,7 @@ export class Game {
               id: -Date.now() - Math.random(),
               isVirtual: true,
             };
-            setTimeout(() => this.handleSha(player, t, virtualSha), 800);
+            this.schedule(() => this.handleSha(player, t, virtualSha), 800);
             return true;
           }
         }
@@ -1844,7 +1857,7 @@ export class Game {
           isVirtual: true,
         };
         log(`视为对 ${t.character.name} 使用一张【投】`);
-        setTimeout(() => this.handleSha(player, t, virtualSha), 1200);
+        this.schedule(() => this.handleSha(player, t, virtualSha), 1200);
         return true;
       }
 
@@ -1890,7 +1903,7 @@ export class Game {
           isVirtual: true,
         };
         log(`弃装备【${equipCard.name}】，无视距离对 ${t.character.name} 出一张【投】`);
-        setTimeout(() => this.handleSha(player, t, virtualSha), 1000);
+        this.schedule(() => this.handleSha(player, t, virtualSha), 1000);
         return true;
       }
 
@@ -1977,7 +1990,7 @@ export class Game {
           id: -Date.now() - Math.random(),
           isVirtual: true,
         };
-        setTimeout(() => this.handleSha(player, t, virtualSha), 900);
+        this.schedule(() => this.handleSha(player, t, virtualSha), 900);
         return true;
       }
 
@@ -2076,7 +2089,7 @@ export class Game {
     const result = checkGameOver(this.players);
     if (result.over && this.gameState === 'playing') {
       // 给死亡动效一点时间再弹结算窗
-      setTimeout(() => this.gameOver(result), 1200);
+      this.schedule(() => this.gameOver(result), 1200);
     }
   }
 
@@ -2198,7 +2211,7 @@ export class Game {
 
   nextTurn() {
     this.currentPlayerIndex = getNextAlivePlayer(this.players, this.currentPlayerIndex);
-    setTimeout(() => this.startTurn(), 500);
+    this.schedule(() => this.startTurn(), 500);
   }
 
   continueTurn() {
