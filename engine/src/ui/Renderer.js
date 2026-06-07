@@ -5,6 +5,15 @@ import { KINGDOM_COLORS, POSITIONS, getCharacterAvatar } from '../config/charact
 import { SUITS, CARD_TYPES, getCardPlaceholder } from '../config/cards';
 import { calculateDistance } from '../core/Logic';
 
+// 卡名 → SoundFx commentary key（让 flashCardPlay 走杨毅风格梗，而不是生硬念"投""盖"）
+const CARD_TTS_KEY = {
+  '投': 'sha', '盖': 'shan', '佳得乐': 'tao',
+  '斗牛': 'juedou', '三分雨': 'wanjian', '全场紧逼': 'nanman',
+  '官方暂停': 'taoyuan', '战术板': 'wuzhong', '战术中断': 'wuxie', '手感来了': 'wugu',
+  '抢断': 'shunshou', '迫使失误': 'guoheshuang', '借刀杀人': 'jiedaosharen',
+  '犯规麻烦': 'lebusishu', '体能危机': 'bingliangcunduan', '伤病隐患': 'shandian',
+};
+
 export class Renderer {
   constructor(game) {
     this.game = game;
@@ -768,7 +777,7 @@ export class Renderer {
   }
 
   // 出牌动效：在玩家卡片上飘出一张被使用的牌名（投/盖/佳得乐 等都通用）
-  // 同步 game.fx 用中文 TTS 报牌名 + 一个底色 beep（保证即便 TTS 不可用也有声音）
+  // 同步 game.fx 用中文 TTS 报杨毅风格解说梗（fx.play(commentaryKey)），命中 mp3 manifest 就走真男声
   flashCardPlay(player, cardName, color) {
     if (!player) return;
     const card = document.getElementById(`player-${player.index}`);
@@ -779,10 +788,15 @@ export class Renderer {
     if (color) burst.style.background = color;
     card.appendChild(burst);
     setTimeout(() => burst.remove(), 1900);
-    // 底色 beep（card_play 没有 DEFAULT_TEXT，纯 beep）
-    this.game?.fx?.play?.('card_play');
-    // TTS 报牌名（用 cardName 的中文）
-    this.game?.fx?.speak?.(cardName);
+    // 走 commentary key 让 fx.play 自动选随机解说梗（"投篮！" / "防守到位！" / "三分雨！哗啦啦！" 等）
+    const key = CARD_TTS_KEY[cardName];
+    if (key) {
+      this.game?.fx?.play?.(key);
+    } else {
+      // 兜底：直接念卡名
+      this.game?.fx?.play?.('card_play');
+      this.game?.fx?.speak?.(cardName);
+    }
   }
 
   // 被锁定 / 被攻击动效：target 卡片摇晃 + 红光，让玩家立刻知道谁在被打
