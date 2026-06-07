@@ -172,7 +172,7 @@ export class Renderer {
       </div>` : '';
 
     card.innerHTML = `
-      <div class="status-area">${statusHtml}</div>
+      <div class="status-area" id="status-${player.index}">${statusHtml}</div>
 
       <div class="player-header">
         ${avatarHtml}
@@ -290,10 +290,13 @@ export class Renderer {
   updatePlayer(player) {
     const hpEl = document.getElementById(`hp-${player.index}`);
     const equipEl = document.getElementById(`equip-${player.index}`);
+    const statusEl = document.getElementById(`status-${player.index}`);
     const cardEl = document.getElementById(`player-${player.index}`);
 
     if (hpEl) hpEl.innerHTML = this.renderHP(player.hp, player.maxHp);
     if (equipEl) equipEl.innerHTML = this.renderEquipment(player);
+    // 状态区（判定区图标：犯规麻烦 🎭 / 体能危机 🍚 / 伤病隐患 ⚡）
+    if (statusEl) statusEl.innerHTML = this.renderStatusIcons(player);
 
     // 人类的快捷按钮在下方独立 tray
     if (player.isHuman) {
@@ -310,6 +313,17 @@ export class Renderer {
       void cardEl.offsetWidth;
       cardEl.classList.add('flash-change');
     }
+  }
+
+  renderStatusIcons(player) {
+    if (!player.judgeCards?.length) return '';
+    let html = '';
+    player.judgeCards.forEach(j => {
+      if (j.key === 'lebusishu') html += '<span class="status-icon" title="犯规麻烦">🎭</span>';
+      if (j.key === 'bingliangcunduan') html += '<span class="status-icon" title="体能危机">🍚</span>';
+      if (j.key === 'shandian') html += '<span class="status-icon" title="伤病隐患">⚡</span>';
+    });
+    return html;
   }
 
   updateUI(game) {
