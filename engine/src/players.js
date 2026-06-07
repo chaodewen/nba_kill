@@ -35,9 +35,12 @@ function cardHtml(ch) {
     </div>`;
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+function render() {
   const body = document.getElementById('roster-page-body');
-  if (!body) return;
+  if (!body) {
+    console.error('[players] roster-page-body 元素未找到');
+    return;
+  }
   const groups = [
     { key: 'guard', title: '后场操盘 · 后卫', icon: '🎯' },
     { key: 'forward', title: '锋线尖刃 · 锋线', icon: '⚡' },
@@ -52,7 +55,14 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="roster-group-grid">${list.map(cardHtml).join('')}</div>
       </div>`;
   }).join('');
-  // 顶部统计
   const total = document.getElementById('roster-total');
   if (total) total.textContent = `${CHARACTERS.length} 人`;
-});
+}
+
+// script 标签放 body 末尾时，DOMContentLoaded 通常已经触发过；
+// 用 readyState 双保险：ready 直接 render，否则挂监听
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', render);
+} else {
+  render();
+}
