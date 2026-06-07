@@ -35,9 +35,9 @@
       font-size: 14px;
     }
     body { overflow: hidden; }
-    /* 手机竖屏允许 body 滚动（Safari 工具栏会缩小可视区） */
+    /* 手机竖屏：body / app 完全锁定到 dvh 可视区，内部分区自己滚 */
     @media (max-width: 768px) {
-      body { overflow: auto; }
+      html, body { height: 100dvh; overflow: hidden; }
     }
 
     .app {
@@ -50,9 +50,11 @@
     }
     @media (max-width: 768px) {
       .app {
-        /* 手机端允许垂直滚动看到所有内容 */
-        height: auto;
-        min-height: 100dvh;
+        /* 严格锁定到当前可视区高度，内部 .main 自己滚动 */
+        height: 100dvh !important;
+        min-height: 0 !important;
+        max-height: 100dvh !important;
+        overflow: hidden;
       }
     }
     
@@ -2262,10 +2264,10 @@
       .human-actions { gap: 5px !important; padding: 0 !important; }
       .human-actions .quick-btn { padding: 6px 4px !important; font-size: 11px !important; min-height: 28px !important; }
 
-      /* —— Bottom panel 手机版：默认 ~2 行日志固定显示，点击展开 60vh + 内部滚动 —— */
+      /* —— Bottom panel 手机版：正常 flex item 不脱流，永远在 .app 底部可见 —— */
       .bottom-panel {
-        position: sticky;
-        bottom: 0;
+        position: relative !important;
+        bottom: auto !important;
         width: 100% !important;
         min-width: 0 !important;
         max-width: none !important;
@@ -2283,11 +2285,22 @@
         overflow: hidden;
       }
       .bottom-panel.expanded {
-        max-height: 60dvh !important;
+        max-height: 50dvh !important;
       }
       .bottom-panel.expanded .log-content {
-        max-height: calc(60dvh - 70px) !important;
+        max-height: calc(50dvh - 70px) !important;
         overflow-y: auto;
+      }
+      /* main / game-area 自己内部滚动，bottom-panel 永远显示 */
+      .main {
+        flex: 1 1 auto !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch;
+        min-height: 0 !important;
+      }
+      .game-area {
+        flex: 1 1 auto;
+        min-height: 0;
       }
       .control-bar { gap: 4px !important; padding: 4px !important; }
       .control-bar .btn { padding: 6px 10px !important; font-size: 12px !important; }
