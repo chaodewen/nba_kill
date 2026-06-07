@@ -982,7 +982,15 @@ export class Game {
         finishDodged();
       } else {
         // 造成伤害（含「禁区铁壁」同位置协同：受到的伤害 -1）
+        const drunkenBefore = !!player.drunken;
         let damage = getShaDamage(player, target, this.players);
+        if (drunkenBefore && damage >= 2) {
+          this.renderer.addLog(`💉 ${player.character.name} 封闭针生效，伤害 +1`, 'skill');
+        }
+        // Shaq 禁区距离 1 加 1：单独提示
+        if (player.character?.key === 'shaquille_oneal' && calculateDistance(player, target, this.players) === 1) {
+          this.renderer.addLog(`✨ ${player.character.name} 触发【禁区】距离 1 加伤`, 'skill');
+        }
         if (target.character?.position === 'inside' && this.hasSamePositionAlive(target)) {
           if (damage > 0) {
             damage = Math.max(0, damage - 1);
@@ -1136,7 +1144,7 @@ export class Game {
 
   handleJuedou(player, target, card) {
     this.renderer.addLog(`⚔️ 对 ${target.character.name} 使用【决斗】`, 'play');
-    this.renderer.flashCardPlay(player, '单挑', '#e67e22');
+    this.renderer.flashCardPlay(player, '斗牛', '#e67e22');
     this.fireSingleTargetScroll(player, target, card);
 
     // 决斗规则：被使用方（target）先出【投】，然后 source，交替直到一方无法响应；
@@ -2003,6 +2011,28 @@ export class Game {
       killer.drawCards(cards);
       this.renderer.addLog(`🎁 ${killer.character.name} 击败敌人，摸 3 张牌`, 'skill');
       this.renderer.updatePlayer(killer);
+    }
+
+    // 击败队友：核心 / 队友杀了自己阵营人，按规则视为犯规 — 简化：弃所有手牌 + 装备区
+    if (killer && !isEnemy(killer, player) && killer.identity?.team === 'core_side' && player.identity?.team === 'core_side') {
+      this.renderer.addLog(`⚠️ ${killer.character.name} 误伤队友，弃所有手牌与装备`, 'system');
+      const allCards = [...killer.handCards];
+      killer.handCards = [];
+      ['weapon', 'armor', 'defenseHorse', 'offenseHorse'].forEach(slot => {
+        if (killer.equipment?.[slot]) {
+          allCards.push(killer.equipment[slot]);
+          killer.equipment[slot] = null;
+        }
+      });
+      allCards.forEach(c => this.discardWithFlash(c, killer));
+      this.renderer.updatePlayer(killer);
+    }
+
+    // 死亡后立即检查游戏结束（不必等到 endPhase 才结算）
+    const result = checkGameOver(this.players);
+    if (result.over && this.gameState === 'playing') {
+      // 给死亡动效一点时间再弹结算窗
+      setTimeout(() => this.gameOver(result), 1200);
     }
   }
 

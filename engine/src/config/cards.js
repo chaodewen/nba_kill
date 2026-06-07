@@ -49,7 +49,7 @@ export const CARDS = {
     image: 'wuzhongshengyou'
   },
   juedou: {
-    name: '单挑',
+    name: '斗牛',
     type: 'scroll',
     suit: 'spade',
     count: 3,
