@@ -166,23 +166,23 @@ export class Renderer {
 
     if (this.elements.humanCardWrap) this.elements.humanCardWrap.innerHTML = '';
 
-    // 顺时针箭头：椭圆 path + 沿圈 4 个明显箭头标方向（top→右 / 右→下 / 下→左 / 左→上）
+    // 顺时针箭头：椭圆 path + 4 个轻量短箭头标方向
     const arrow = document.createElement('div');
     arrow.className = 'mobile-turn-arrow';
     arrow.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
       <defs>
-        <marker id="arrhead-mobile" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
-          <polygon points="0 0, 10 5, 0 10" fill="rgba(243,156,18,0.95)"/>
+        <marker id="arrhead-mobile" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+          <polygon points="0 0, 6 3, 0 6" fill="rgba(243,156,18,0.85)"/>
         </marker>
       </defs>
-      <!-- 椭圆轨迹（虚线） -->
+      <!-- 椭圆轨迹（细虚线） -->
       <path d="M 18 50 Q 18 18 50 18 Q 92 18 92 50 Q 92 82 50 82 Q 18 82 18 50"
-            fill="none" stroke="rgba(243,156,18,0.32)" stroke-width="1.5" stroke-dasharray="3 3"/>
-      <!-- 4 个独立箭头标方向（顺时针） -->
-      <line x1="32" y1="20" x2="48" y2="18" stroke="rgba(243,156,18,0.85)" stroke-width="2.5" marker-end="url(#arrhead-mobile)"/>
-      <line x1="86" y1="32" x2="90" y2="48" stroke="rgba(243,156,18,0.85)" stroke-width="2.5" marker-end="url(#arrhead-mobile)"/>
-      <line x1="68" y1="80" x2="52" y2="82" stroke="rgba(243,156,18,0.85)" stroke-width="2.5" marker-end="url(#arrhead-mobile)"/>
-      <line x1="14" y1="68" x2="18" y2="52" stroke="rgba(243,156,18,0.85)" stroke-width="2.5" marker-end="url(#arrhead-mobile)"/>
+            fill="none" stroke="rgba(243,156,18,0.28)" stroke-width="1" stroke-dasharray="2 4"/>
+      <!-- 4 个小箭头（顺时针方向）：上→右 / 右→下 / 下→左 / 左→上 -->
+      <line x1="42" y1="19" x2="48" y2="18" stroke="rgba(243,156,18,0.7)" stroke-width="1.6" marker-end="url(#arrhead-mobile)"/>
+      <line x1="89" y1="42" x2="91" y2="48" stroke="rgba(243,156,18,0.7)" stroke-width="1.6" marker-end="url(#arrhead-mobile)"/>
+      <line x1="58" y1="81" x2="52" y2="82" stroke="rgba(243,156,18,0.7)" stroke-width="1.6" marker-end="url(#arrhead-mobile)"/>
+      <line x1="17" y1="58" x2="18" y2="52" stroke="rgba(243,156,18,0.7)" stroke-width="1.6" marker-end="url(#arrhead-mobile)"/>
     </svg>`;
     oppArea.appendChild(arrow);
 
@@ -674,8 +674,8 @@ export class Renderer {
     this.clearShanCandidates();
   }
 
-  // 标记 / 清除人类手牌中可作为出盖响应的卡（盖 + Battier 黑色手牌）
-  markShanCandidates(humanPlayer) {
+  // 标记 / 清除人类手牌中可作为响应的卡（默认 shan + Battier 黑色，可指定其他 key 如 sha）
+  markShanCandidates(humanPlayer, requiredKey = 'shan') {
     const handEl = document.getElementById('human-hand');
     if (!handEl || !humanPlayer) return;
     const isBattier = humanPlayer.character?.key === 'shane_battier';
@@ -683,8 +683,8 @@ export class Renderer {
     minis.forEach((el, i) => {
       const card = humanPlayer.handCards[i];
       if (!card) return;
-      const canRespond = card.key === 'shan'
-        || (isBattier && card.key !== 'shan' && (card.suit === 'spade' || card.suit === 'club'));
+      const canRespond = card.key === requiredKey
+        || (requiredKey === 'shan' && isBattier && card.key !== 'shan' && (card.suit === 'spade' || card.suit === 'club'));
       if (canRespond) {
         el.classList.add('shan-response-candidate');
         el.classList.remove('shan-response-locked');

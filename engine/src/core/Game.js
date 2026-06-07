@@ -1434,16 +1434,21 @@ export class Game {
 
     const hasCard = p.handCards.some(c => c.key === requiredKey);
 
-    const useResponseCard = () => {
-      const i = p.handCards.findIndex(c => c.key === requiredKey);
-      const used = p.handCards.splice(i, 1)[0];
-      this.discardWithFlash(used, p);
+    // 把"消耗 1 张响应牌"封装成回调（pendingResponse.alreadyConsumed 决定要不要再扣）
+    const consumeAndContinue = () => {
       this.renderer.addLog(`🛡️ ${p.character.name} 打出【${requiredName}】抵消`, 'normal');
       const color = requiredKey === 'shan' ? '#3498db' : '#e74c3c';
       this.renderer.flashCardPlay(p, requiredName, color);
       this.renderer.updatePlayer(p);
       this.renderer.updateUI(this);
       setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2000);
+    };
+
+    const useResponseCard = () => {
+      const i = p.handCards.findIndex(c => c.key === requiredKey);
+      const used = p.handCards.splice(i, 1)[0];
+      this.discardWithFlash(used, p);
+      consumeAndContinue();
     };
 
     const takeDamage = () => {
@@ -1456,19 +1461,27 @@ export class Game {
       setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2000);
     };
 
-    // 人类作为目标：弹窗让玩家自己选
+    // 人类作为目标：复用 pendingShanResponse 模式 — banner + 手牌点击 + 受伤按钮
     if (p.isHuman && hasCard) {
-      this.renderer.showConfirm(
-        `📜 ${source.character.name} 使用【${aoeName}】！`,
-        `你需要打出一张【${requiredName}】抵消，否则受 1 点伤害。要打出吗？`,
-        () => useResponseCard(),
-        () => takeDamage()
+      this.pendingShanResponse = {
+        target: p,
+        source,
+        card: null,
+        requiredKey,
+        requiredName,
+        // 玩家点了一张能用的牌：消耗它（playHandCard 已 splice），然后调 consumeAndContinue
+        onShan: (alreadyConsumed) => consumeAndContinue(),
+        onSkip: () => takeDamage(),
+      };
+      this.renderer.showShanResponseBanner(
+        `${source.character.name} 的【${aoeName}】`,
+        1
       );
-      this.renderer.elements.confirmBtn.onclick = () => this.renderer.confirmAction();
+      this.renderer.markShanCandidates(p, requiredKey);
       return;
     }
 
-    // AI 自动决策（保留原逻辑）
+    // AI 自动决策
     if (hasCard) useResponseCard();
     else takeDamage();
   }
@@ -2200,22 +2213,23 @@ export class Game {
     if (this.pendingShanResponse && this.pendingShanResponse.target === player) {
       const card = player.handCards.find(c => c.id === cardId);
       if (!card) return;
+      const requiredKey = this.pendingShanResponse.requiredKey || 'shan';
       const isBattier = player.character?.key === 'shane_battier';
-      const canRespond = card.key === 'shan'
-        || (isBattier && (card.suit === 'spade' || card.suit === 'club'));
+      // Battier 站位仅在 sha 响应（requiredKey=shan）时允许黑色手牌当盖；其它情况严格匹配
+      const canRespond = card.key === requiredKey
+        || (requiredKey === 'shan' && isBattier && (card.suit === 'spade' || card.suit === 'club'));
       if (!canRespond) {
-        this.renderer.flashRejected(playerIndex, '只能出【盖】响应，或点"受伤"');
+        this.renderer.flashRejected(playerIndex, `只能出【${this.pendingShanResponse.requiredName || '盖'}】响应，或点"受伤"`);
         return;
       }
-      // 先消耗这张响应牌（盖 / Battier 黑色手牌）
+      // 先消耗这张响应牌（盖 / Battier 黑色手牌 / 全场紧逼时的投）
       const idx = player.handCards.findIndex(c => c.id === cardId);
       if (idx === -1) return;
       const used = player.handCards.splice(idx, 1)[0];
       this.discardWithFlash(used, player);
-      if (used.key !== 'shan') {
+      if (used.key !== requiredKey && requiredKey === 'shan') {
         this.renderer.addLog(`✨ ${player.character.name} 触发【站位】，将【${used.name}】当【盖】使用`, 'skill');
       }
-      // 标记本次响应已用 1 张盖（决斗等多张响应用 _shanResponseUsed 累计；常规 sha 用 1 张即可）
       this.renderer.updatePlayer(player);
       const ctx = this.pendingShanResponse;
       this.pendingShanResponse = null;
