@@ -452,11 +452,13 @@ export class Game {
   }
 
   executePlayQueue(player) {
+    // 防 stale：上回合的 setTimeout fire 时，已经轮到下一玩家，直接 abort
+    if (this.players[this.currentPlayerIndex] !== player) return;
     if (this.isPaused || this.playQueue.length === 0) {
       this.discardPhase(player);
       return;
     }
-    
+
     const decision = this.playQueue.shift();
     this.executeDecision(player, decision);
   }
@@ -469,7 +471,11 @@ export class Game {
     }
     // 全局节奏：默认 5x（400 × 5 = 2000ms / 动作）；通过 paceMultiplier 设置切换 0.5x / 1x / 2x
     const PACE_MULTIPLIER = 5 * (this.paceMultiplier ? this.paceMultiplier / 2 : 1);
-    setTimeout(() => this.executePlayQueue(player), delay * PACE_MULTIPLIER);
+    setTimeout(() => {
+      // 防 stale：fire 时回合已切换则不继续
+      if (this.players[this.currentPlayerIndex] !== player) return;
+      this.executePlayQueue(player);
+    }, delay * PACE_MULTIPLIER);
   }
 
   executeDecision(player, decision) {
