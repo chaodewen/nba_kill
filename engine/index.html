@@ -1480,6 +1480,139 @@
 
     /* 信息弹窗 */
     .info-modal { z-index: 250; align-items: flex-start; padding-top: 8vh; }
+
+    /* 球员图鉴弹窗 */
+    .roster-modal { z-index: 260; align-items: flex-start; padding-top: 4vh; }
+    .roster-box {
+      background: var(--bg-card);
+      border-radius: 14px;
+      padding: 18px 22px;
+      max-width: 1100px;
+      width: 94%;
+      max-height: 90vh;
+      border: 2px solid var(--primary);
+      box-shadow: 0 0 30px rgba(243, 156, 18, 0.35);
+      display: flex;
+      flex-direction: column;
+    }
+    .roster-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .roster-title { font-size: 18px; font-weight: 700; color: var(--primary); }
+    .roster-body {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 14px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .roster-card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      transition: border-color 0.15s, transform 0.15s;
+    }
+    .roster-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-2px);
+    }
+    .roster-card-head {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .roster-avatar {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      object-fit: cover;
+      object-position: center top;
+      border: 2px solid var(--border);
+      background: var(--bg-card);
+      flex-shrink: 0;
+    }
+    .roster-avatar-fallback {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: #1a1a2e;
+      font-size: 24px;
+      font-weight: 800;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .roster-name { font-size: 16px; font-weight: 700; color: var(--text); line-height: 1.2; }
+    .roster-name-en { font-size: 11px; color: var(--text-muted); }
+    .roster-tag-row { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 3px; }
+    .roster-tag {
+      font-size: 10px;
+      padding: 1px 6px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.08);
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+    .roster-tag.pos-inside { color: #16a34a; background: rgba(22, 163, 74, 0.15); }
+    .roster-tag.pos-guard { color: #2f80ed; background: rgba(47, 128, 237, 0.15); }
+    .roster-tag.pos-forward { color: #e11d48; background: rgba(225, 29, 72, 0.15); }
+    .roster-tag.hp-tag { color: #ef4444; background: rgba(239, 68, 68, 0.15); }
+    .roster-tag.nick { color: #fbbf24; background: rgba(251, 191, 36, 0.15); }
+    .roster-bio {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.5;
+      padding: 6px 8px;
+      background: rgba(0, 0, 0, 0.18);
+      border-radius: 6px;
+      border-left: 2px solid var(--border);
+    }
+    .roster-skills {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .roster-skill {
+      padding: 6px 8px;
+      background: rgba(243, 156, 18, 0.08);
+      border-left: 2px solid var(--primary);
+      border-radius: 4px;
+    }
+    .roster-skill-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 2px;
+    }
+    .roster-skill-desc {
+      font-size: 11px;
+      color: var(--text);
+      line-height: 1.45;
+    }
+    @media (max-width: 768px) {
+      .roster-box { padding: 12px 14px; max-height: 92vh; }
+      .roster-modal { padding-top: 2vh; }
+      .roster-title { font-size: 15px; }
+      .roster-body {
+        grid-template-columns: 1fr;
+        gap: 10px;
+      }
+      .roster-card { padding: 10px 12px; }
+      .roster-avatar, .roster-avatar-fallback { width: 48px; height: 48px; }
+      .roster-name { font-size: 14px; }
+    }
     .info-box {
       background: var(--bg-card);
       border-radius: 12px;
@@ -2654,6 +2787,9 @@
         <button class="header-btn" onclick="game.showRulesModal()" title="游戏规则">
           <span class="header-btn-icon">📖</span><span class="header-btn-label">规则</span>
         </button>
+        <button class="header-btn" onclick="game.showRosterModal()" title="球员图鉴 / 技能详情">
+          <span class="header-btn-icon">🏀</span><span class="header-btn-label">球员</span>
+        </button>
         <button class="header-btn" onclick="game.showInfoModal()" title="作者信息 / 致谢">
           <span class="header-btn-icon">ℹ️</span><span class="header-btn-label">信息</span>
         </button>
@@ -2761,6 +2897,19 @@
       <div class="winner-actions">
         <button class="btn btn-primary" onclick="game.confirmRestart(); game.renderer.hideWinnerModal();">🔁 再来一局</button>
         <button class="btn btn-secondary" onclick="game.renderer.hideWinnerModal()">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 球员图鉴弹窗 -->
+  <div class="modal-overlay roster-modal" id="roster-modal" onclick="game.hideRosterModal(event)">
+    <div class="roster-box" onclick="event.stopPropagation()">
+      <div class="roster-header">
+        <span class="roster-title">🏀 球员图鉴 · 16 人</span>
+        <button class="card-pick-cancel" onclick="game.hideRosterModal()">关闭 ✕</button>
+      </div>
+      <div class="roster-body" id="roster-body">
+        <!-- 球员卡片由 Renderer.populateRosterModal 动态填充 -->
       </div>
     </div>
   </div>

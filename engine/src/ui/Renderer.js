@@ -1,7 +1,7 @@
 /**
  * UI 渲染器
  */
-import { KINGDOM_COLORS, POSITIONS, getCharacterAvatar } from '../config/characters';
+import { CHARACTERS, KINGDOM_COLORS, POSITIONS, getCharacterAvatar } from '../config/characters';
 import { SUITS, CARD_TYPES, getCardPlaceholder } from '../config/cards';
 import { calculateDistance } from '../core/Logic';
 
@@ -65,6 +65,9 @@ export class Renderer {
       rulesModal: document.getElementById('rules-modal'),
       // 关于 / 信息
       infoModal: document.getElementById('info-modal'),
+      // 球员图鉴
+      rosterModal: document.getElementById('roster-modal'),
+      rosterBody: document.getElementById('roster-body'),
       // 目标选择
       targetBanner: document.getElementById('target-banner'),
       targetBannerText: document.getElementById('target-banner-text'),
@@ -940,6 +943,53 @@ export class Renderer {
     if (!this.elements.cardPickModal) return;
     this.elements.cardPickModal.classList.remove('show');
     if (this.elements.cardPickBody) this.elements.cardPickBody.innerHTML = '';
+  }
+
+  // 球员图鉴：列出 CHARACTERS 全部 16 人，每张卡含头像 / 名字 / 位置 / HP / bio / 技能详情
+  showRosterModal() {
+    if (!this.elements.rosterModal || !this.elements.rosterBody) return;
+    const escape = (s) => String(s ?? '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+    const html = CHARACTERS.map(ch => {
+      const pos = POSITIONS[ch.position] || { name: '?', short: '?' };
+      const avatarUrl = getCharacterAvatar(ch);
+      const initial = (ch.cnName || ch.name || '?').charAt(0);
+      const photoTransform = ch.photoTransform ? `style="transform: ${escape(ch.photoTransform)}"` : '';
+      const avatarHtml = avatarUrl
+        ? `<img class="roster-avatar" src="${escape(avatarUrl)}" ${photoTransform} alt="${escape(ch.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span class="roster-avatar-fallback" style="display:none">${escape(initial)}</span>`
+        : `<span class="roster-avatar-fallback">${escape(initial)}</span>`;
+      const skillsHtml = (ch.skills || []).map(sk => `
+        <div class="roster-skill">
+          <div class="roster-skill-name">${escape(sk.name)}</div>
+          <div class="roster-skill-desc">${escape(sk.description)}</div>
+        </div>`).join('');
+      return `
+        <div class="roster-card">
+          <div class="roster-card-head">
+            ${avatarHtml}
+            <div style="flex:1;min-width:0;">
+              <div class="roster-name">${escape(ch.cnName || ch.name)} <span class="roster-name-en">${escape(ch.name)}</span></div>
+              <div class="roster-tag-row">
+                ${ch.nickname ? `<span class="roster-tag nick">「${escape(ch.nickname)}」</span>` : ''}
+                <span class="roster-tag pos-${escape(ch.position)}">${escape(pos.short || pos.name)}</span>
+                <span class="roster-tag hp-tag">❤ ${ch.hp}</span>
+              </div>
+            </div>
+          </div>
+          ${ch.bio ? `<div class="roster-bio">${escape(ch.bio)}</div>` : ''}
+          <div class="roster-skills">${skillsHtml}</div>
+        </div>`;
+    }).join('');
+
+    this.elements.rosterBody.innerHTML = html;
+    this.elements.rosterModal.classList.add('show');
+  }
+
+  hideRosterModal() {
+    if (!this.elements.rosterModal) return;
+    this.elements.rosterModal.classList.remove('show');
   }
 
   // 胜利弹窗 + 身份揭示

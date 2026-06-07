@@ -68,19 +68,39 @@ export class SoundFx {
   async _loadMp3Manifest() {
     if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
     try {
-      const base = (window.__VOICE_BASE__ || './voice') + '/manifest.json';
-      const res = await fetch(base, { cache: 'force-cache' });
+      const baseDir = (window.__VOICE_BASE__ || './voice');
+      const manifestUrl = new URL(baseDir + '/manifest.json', window.location.href).href;
+      const res = await fetch(manifestUrl, { cache: 'no-cache' });
       if (!res.ok) {
-        console.warn(`[SoundFx] voice manifest 加载失败 (${res.status})，fallback 到 SpeechSynthesis 女声`);
+        const msg = `voice manifest 加载失败 (${res.status}) — ${manifestUrl}`;
+        console.warn(`[SoundFx] ${msg}`);
+        this._broadcastVoiceStatus({ ok: false, message: msg });
         return;
       }
-      this.mp3Manifest = await res.json();
+      const raw = await res.json();
+      // 把所有相对路径转成绝对，避免不同 base URL / 二级目录下 Audio() 解析错
+      const baseAbs = new URL(baseDir + '/', window.location.href).href;
+      this.mp3Manifest = {};
+      for (const [k, v] of Object.entries(raw)) {
+        // v 可能是 './voice/xxx.mp3'（相对 page）或 'voice/xxx.mp3'，这里全转绝对
+        const filename = String(v).split('/').pop();
+        this.mp3Manifest[k] = baseAbs + filename;
+      }
       const count = Object.keys(this.mp3Manifest).length;
       console.log(`[SoundFx] ✓ 杨毅风男声 mp3 已加载（${count} 句）— 优先播 mp3，未命中走系统 TTS`);
+      this._broadcastVoiceStatus({ ok: true, count, baseAbs });
     } catch (e) {
-      console.warn('[SoundFx] voice manifest fetch 异常，fallback 到 SpeechSynthesis 女声：', e.message);
+      console.warn('[SoundFx] voice manifest fetch 异常，fallback 到 SpeechSynthesis 女声：', e?.message || e);
+      this._broadcastVoiceStatus({ ok: false, message: e?.message || String(e) });
       this.mp3Manifest = null;
     }
+  }
+
+  // 把 voice 加载状态用自定义事件抛出，让 Renderer 显示 toast 提示
+  _broadcastVoiceStatus(status) {
+    try {
+      window.dispatchEvent(new CustomEvent('nba-voice-status', { detail: status }));
+    } catch (e) {}
   }
 
   _loadVoices() {
