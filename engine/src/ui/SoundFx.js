@@ -70,10 +70,15 @@ export class SoundFx {
     try {
       const base = (window.__VOICE_BASE__ || './voice') + '/manifest.json';
       const res = await fetch(base, { cache: 'force-cache' });
-      if (!res.ok) return;
+      if (!res.ok) {
+        console.warn(`[SoundFx] voice manifest 加载失败 (${res.status})，fallback 到 SpeechSynthesis 女声`);
+        return;
+      }
       this.mp3Manifest = await res.json();
+      const count = Object.keys(this.mp3Manifest).length;
+      console.log(`[SoundFx] ✓ 杨毅风男声 mp3 已加载（${count} 句）— 优先播 mp3，未命中走系统 TTS`);
     } catch (e) {
-      // 没生成过 mp3 — 安静 fallback 到 SpeechSynthesis
+      console.warn('[SoundFx] voice manifest fetch 异常，fallback 到 SpeechSynthesis 女声：', e.message);
       this.mp3Manifest = null;
     }
   }
@@ -120,11 +125,10 @@ export class SoundFx {
     return this.ctx;
   }
 
-  // 浏览器策略：AudioContext 必须由用户手势触发后才能 resume
+  // 浏览器策略：AudioContext 必须由用户手势触发后才能 resume；mp3 Audio() 同样需要手势 unlock
   unlock() {
     const ctx = this._ensureCtx();
-    if (!ctx) return;
-    if (ctx.state === 'suspended' && !this._unlocked) {
+    if (ctx && ctx.state === 'suspended' && !this._unlocked) {
       ctx.resume().catch(() => {});
       this._unlocked = true;
     }
@@ -135,6 +139,16 @@ export class SoundFx {
         warm.volume = 0;
         this.synth.speak(warm);
         this._speechWarmed = true;
+      } catch (e) {}
+    }
+    // mp3 / Audio() 在 iOS Safari 必须由用户手势 unlock — 用极短无声 mp3 触发一次 play()
+    // 之后 setTimeout 内的 audio.play() 不会被静默
+    if (!this._audioWarmed) {
+      try {
+        const a = new Audio('data:audio/mp3;base64,SUQzAwAAAAAAFlRJVDIAAAAFAAAATEFNRQAAAAAAAAAAAAAAAAAA//uQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
+        a.volume = 0;
+        a.play().then(() => a.pause()).catch(() => {});
+        this._audioWarmed = true;
       } catch (e) {}
     }
   }
@@ -157,18 +171,29 @@ export class SoundFx {
 
     // (1) mp3 优先
     if (lang === 'zh' && this.mp3Manifest && this.mp3Manifest[key]) {
-      this._playMp3(this.mp3Manifest[key]);
+      this._playMp3(this.mp3Manifest[key], key);
       return;
+    }
+    // 命中失败：log 一次方便用户知道哪些 text 没生成 mp3
+    if (lang === 'zh' && this.mp3Manifest && !this._missLogged) {
+      this._missLogged = new Set();
+    }
+    if (lang === 'zh' && this.mp3Manifest && this._missLogged && !this._missLogged.has(key)) {
+      this._missLogged.add(key);
+      console.debug(`[SoundFx] mp3 未命中: "${key}" → fallback SpeechSynthesis`);
     }
 
     // (2) Fallback: SpeechSynthesis
+    this._speakSS(key, lang);
+  }
+
+  _speakSS(text, lang = 'zh') {
     if (!this.synth) return;
     try {
-      const u = new SpeechSynthesisUtterance(key);
+      const u = new SpeechSynthesisUtterance(text);
       const isEn = lang === 'en';
       u.lang = isEn ? 'en-US' : 'zh-CN';
       u.rate = isEn ? 1.05 : 0.92;
-      // 极限低 pitch 让女声听起来非常低沉接近成熟男解说（在没装中文男声 voice 的系统上必要）
       u.pitch = isEn ? 1.0 : (this.zhVoiceIsMale ? 0.95 : 0.5);
       u.volume = 1.0;
       const v = isEn ? this.enVoice : this.zhVoice;
@@ -177,7 +202,7 @@ export class SoundFx {
     } catch (e) {}
   }
 
-  _playMp3(url) {
+  _playMp3(url, fallbackText) {
     try {
       let audio = this._audioCache.get(url);
       if (!audio) {
@@ -186,8 +211,20 @@ export class SoundFx {
         this._audioCache.set(url, audio);
       }
       audio.currentTime = 0;
-      audio.play().catch(() => {});
-    } catch (e) {}
+      const playPromise = audio.play();
+      if (playPromise && playPromise.catch) {
+        playPromise.catch((err) => {
+          // mp3 播放失败（404 / autoplay 限制）→ fallback 到 SS
+          if (!this._mp3FailLogged) {
+            console.warn(`[SoundFx] mp3 播放失败，fallback SS：${err?.name || err}（url=${url}）`);
+            this._mp3FailLogged = true;
+          }
+          if (fallbackText) this._speakSS(fallbackText, 'zh');
+        });
+      }
+    } catch (e) {
+      if (fallbackText) this._speakSS(fallbackText, 'zh');
+    }
   }
 
   // 朗读 NBA 球员名（自动用英文 voice）
