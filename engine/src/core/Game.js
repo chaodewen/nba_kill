@@ -146,6 +146,10 @@ export class Game {
 
     // 重新初始化牌堆
     this.deck = new Deck();
+    // 牌堆耗尽时洗弃牌堆复用，向玩家广播一条系统日志，避免静默 stall
+    this.deck.onReshuffle = (count) => {
+      this.renderer?.addLog?.(`🔄 牌堆耗尽，洗弃牌堆复用（${count} 张）`, 'system');
+    };
 
     // 本局精彩镜头数据
     this.highlights = [];
@@ -458,8 +462,8 @@ export class Game {
       this.renderer.updateUI(this);
       return;
     }
-    // 全局节奏：每个动作约 1.5s（400 × 3.75），便于看清每一步发生了什么
-    const PACE_MULTIPLIER = 5;
+    // 全局节奏：默认 5x（400 × 5 = 2000ms / 动作）；通过 paceMultiplier 设置切换 0.5x / 1x / 2x
+    const PACE_MULTIPLIER = 5 * (this.paceMultiplier ? this.paceMultiplier / 2 : 1);
     setTimeout(() => this.executePlayQueue(player), delay * PACE_MULTIPLIER);
   }
 
@@ -504,15 +508,20 @@ export class Game {
     }
     
     player.handCards.splice(cardIndex, 1);
-    
+
     if (oldEquip) {
-      this.deck.discard(oldEquip);
+      this.discardWithFlash(oldEquip, player);
     }
-    
+
     this.renderer.updatePlayer(player);
     this.renderer.updateUI(this);
-    this.renderer.addLog(`装备【${card.name}】`, 'play');
-    
+    this.renderer.addLog(`${player.character.name} 装备【${card.name}】`, 'play');
+    // 装备类用紫色徽章区分于战术 / 投盖佳得乐
+    const equipColor = card.type === 'weapon' ? '#e67e22'
+      : card.type === 'armor' ? '#3498db'
+      : '#9b59b6';
+    this.renderer.flashCardPlay(player, card.name, equipColor);
+
     this.continueAfterCard(player, 400);
   }
 
@@ -1938,6 +1947,19 @@ export class Game {
 
   toggleSettings() {
     this.renderer.toggleSettings();
+  }
+
+  // 节奏档位：0.5 极速、1 快速、2 标准（默认）
+  setPace(pace) {
+    const v = Number(pace);
+    if (![0.5, 1, 2].includes(v)) return;
+    this.paceMultiplier = v;
+    if (this.renderer) this.renderer._paceMultiplier = v / 2;
+    document.querySelectorAll('.settings-option[data-pace]').forEach(b => {
+      b.classList.toggle('active', Number(b.dataset.pace) === v);
+    });
+    const labels = { 0.5: '极速 (0.5s)', 1: '快速 (1s)', 2: '标准 (2s)' };
+    this.renderer?.addLog?.(`⏱ 节奏切换：${labels[v]}`, 'system');
   }
 
   setTheme(theme) {

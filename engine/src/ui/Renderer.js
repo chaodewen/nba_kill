@@ -813,9 +813,10 @@ export class Renderer {
     }
     const { message, type } = this._logQueue.shift();
     this._renderLogEntry(message, type);
-    // 每条日志展现 2s 后再弹下一条；积压超过 6 条时缩到 1s 防止日志严重落后游戏
-    const gap = this._logQueue.length > 6 ? 1000 : 2000;
-    this._logTimer = setTimeout(() => this._processLogQueue(), gap);
+    // 每条日志默认 2s 后弹下一条；积压超过 6 条自动缩到 1s；paceMultiplier 倍率支持设置面板调速
+    const baseGap = this._logQueue.length > 6 ? 1000 : 2000;
+    const mult = this._paceMultiplier ?? 1;
+    this._logTimer = setTimeout(() => this._processLogQueue(), Math.max(120, baseGap * mult));
   }
 
   _renderLogEntry(message, type = 'normal') {

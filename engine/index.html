@@ -1713,23 +1713,71 @@
     .settings-panel {
       position: fixed;
       top: 0;
-      right: -260px;
-      width: 240px;
+      right: -300px;
+      width: 280px;
       height: 100vh;
       background: var(--bg-secondary);
       border-left: 1px solid var(--border);
       z-index: 150;
       transition: right 0.3s;
       padding: 16px;
+      overflow-y: auto;
     }
-    
+
     .settings-panel.open { right: 0; }
-    
+
     .settings-title {
       font-size: 16px;
       font-weight: 700;
       margin-bottom: 16px;
       color: var(--primary);
+    }
+
+    .settings-section {
+      margin: 16px 0 12px;
+      padding: 10px 12px;
+      background: var(--bg-card);
+      border-radius: 8px;
+      border: 1px solid var(--border);
+    }
+    .settings-section-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 8px;
+      letter-spacing: 0.4px;
+    }
+    .settings-options {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+    .settings-option {
+      flex: 1;
+      min-width: 60px;
+      padding: 6px 8px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .settings-option:hover {
+      border-color: var(--primary);
+    }
+    .settings-option.active {
+      background: var(--primary);
+      color: #1a1a2e;
+      border-color: var(--primary);
+      font-weight: 700;
+    }
+    .settings-hint {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.5;
     }
     
     .settings-close {
@@ -2144,8 +2192,19 @@
   <div class="settings-panel" id="settings-panel">
     <button class="settings-close" onclick="game.toggleSettings()">✕</button>
     <div class="settings-title">⚙️ 设置</div>
+
+    <div class="settings-section">
+      <div class="settings-section-title">🚀 节奏</div>
+      <div class="settings-options" id="setting-pace-options">
+        <button class="settings-option" data-pace="0.5" onclick="game.setPace(0.5)">⚡ 极速</button>
+        <button class="settings-option" data-pace="1" onclick="game.setPace(1)">🏃 快速</button>
+        <button class="settings-option active" data-pace="2" onclick="game.setPace(2)">⏱ 标准 (2s)</button>
+      </div>
+      <div class="settings-hint">每个动作和日志的展示时长。极速适合 review 节奏，标准是默认。</div>
+    </div>
+
     <div class="settings-version">
-      <p>v0.2.0 · 16球员 · 108卡牌</p>
+      <p>v0.2.0 · 16 球员 · 108 卡牌</p>
       <p id="build-timestamp"></p>
     </div>
   </div>
