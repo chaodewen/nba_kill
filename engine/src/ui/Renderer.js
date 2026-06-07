@@ -1,7 +1,7 @@
 /**
  * UI 渲染器
  */
-import { CHARACTERS, KINGDOM_COLORS, POSITIONS, getCharacterAvatar } from '../config/characters';
+import { KINGDOM_COLORS, POSITIONS, getCharacterAvatar } from '../config/characters';
 import { SUITS, CARD_TYPES, getCardPlaceholder } from '../config/cards';
 import { calculateDistance } from '../core/Logic';
 
@@ -65,9 +65,6 @@ export class Renderer {
       rulesModal: document.getElementById('rules-modal'),
       // 关于 / 信息
       infoModal: document.getElementById('info-modal'),
-      // 球员图鉴独立页
-      rosterPage: document.getElementById('roster-page'),
-      rosterPageBody: document.getElementById('roster-page-body'),
       // 目标选择
       targetBanner: document.getElementById('target-banner'),
       targetBannerText: document.getElementById('target-banner-text'),
@@ -945,71 +942,6 @@ export class Renderer {
     if (this.elements.cardPickBody) this.elements.cardPickBody.innerHTML = '';
   }
 
-  // 球员图鉴独立页：列出 16 球员按位置分组（后卫 / 锋线 / 内线）
-  showRosterPage() {
-    if (!this.elements.rosterPage || !this.elements.rosterPageBody) return;
-    const escape = (s) => String(s ?? '')
-      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
-
-    const cardHtml = (ch) => {
-      const pos = POSITIONS[ch.position] || { name: '?', short: '?' };
-      const avatarUrl = getCharacterAvatar(ch);
-      const initial = (ch.cnName || ch.name || '?').charAt(0);
-      const photoTransform = ch.photoTransform ? `style="transform: ${escape(ch.photoTransform)}"` : '';
-      const avatarHtml = avatarUrl
-        ? `<img class="roster-avatar" src="${escape(avatarUrl)}" ${photoTransform} alt="${escape(ch.name)}" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"><span class="roster-avatar-fallback" style="display:none">${escape(initial)}</span>`
-        : `<span class="roster-avatar-fallback">${escape(initial)}</span>`;
-      const skillsHtml = (ch.skills || []).map(sk => `
-        <div class="roster-skill">
-          <div class="roster-skill-name">${escape(sk.name)}</div>
-          <div class="roster-skill-desc">${escape(sk.description)}</div>
-        </div>`).join('');
-      return `
-        <div class="roster-card">
-          <div class="roster-card-head">
-            ${avatarHtml}
-            <div style="flex:1;min-width:0;">
-              <div class="roster-name">${escape(ch.cnName || ch.name)} <span class="roster-name-en">${escape(ch.name)}</span></div>
-              <div class="roster-tag-row">
-                ${ch.nickname ? `<span class="roster-tag nick">「${escape(ch.nickname)}」</span>` : ''}
-                <span class="roster-tag hp-tag">❤ ${ch.hp}</span>
-              </div>
-            </div>
-          </div>
-          ${ch.bio ? `<div class="roster-bio">${escape(ch.bio)}</div>` : ''}
-          <div class="roster-skills">${skillsHtml}</div>
-        </div>`;
-    };
-
-    // 按位置分组：后卫 / 锋线 / 内线
-    const groups = [
-      { key: 'guard', title: '后场操盘 · 后卫', icon: '🎯' },
-      { key: 'forward', title: '锋线尖刃 · 锋线', icon: '⚡' },
-      { key: 'inside', title: '禁区铁壁 · 内线', icon: '🛡️' },
-    ];
-    const html = groups.map(g => {
-      const list = CHARACTERS.filter(c => c.position === g.key);
-      if (!list.length) return '';
-      return `
-        <div class="roster-group">
-          <div class="roster-group-title pos-${g.key}">${g.icon} ${g.title}（${list.length} 人）</div>
-          <div class="roster-group-grid">${list.map(cardHtml).join('')}</div>
-        </div>`;
-    }).join('');
-
-    this.elements.rosterPageBody.innerHTML = html;
-    this.elements.rosterPage.classList.add('show');
-    document.querySelector('.app')?.classList.add('roster-mode');
-    // 滚回顶部，避免上次的滚动残留
-    this.elements.rosterPageBody.scrollTop = 0;
-  }
-
-  hideRosterPage() {
-    this.elements.rosterPage?.classList.remove('show');
-    document.querySelector('.app')?.classList.remove('roster-mode');
-  }
-
   // 胜利弹窗 + 身份揭示
   showWinnerModal({ winner, winnerName, reason, players, summary, turnCount }) {
     if (!this.elements.winnerModal) return;
@@ -1101,31 +1033,10 @@ export class Renderer {
   }
 
   // 日志（最新条目置顶）
+  // 排队 / 节奏控制由外层 actionQueue 统一处理（wrapWithEvents 拦截非 immediate 类 addLog 入队）
+  // 这里直接渲染：'system'/'turn'/'phase'/'death' 通过 bypass 立即到这里，其他通过 1.5s 节奏窗到这里
   addLog(message, type = 'normal') {
-    // 把日志排队，每条间隔 ~1.2s 展示，避免连续事件刷屏看不清
-    // 系统类（system / phase / turn / 错误）即时显示，不入队
-    const instantTypes = new Set(['system', 'turn', 'phase', 'death']);
-    if (instantTypes.has(type)) {
-      this._renderLogEntry(message, type);
-      return;
-    }
-    this._logQueue = this._logQueue || [];
-    this._logQueue.push({ message, type });
-    if (this._logTimer) return;
-    this._processLogQueue();
-  }
-
-  _processLogQueue() {
-    if (!this._logQueue || this._logQueue.length === 0) {
-      this._logTimer = null;
-      return;
-    }
-    const { message, type } = this._logQueue.shift();
     this._renderLogEntry(message, type);
-    // 每条日志 1.5s 节奏（声音/动效也按这个节奏对齐）；积压 >6 时缩到 0.9s 防卡
-    const baseGap = this._logQueue.length > 6 ? 900 : 1500;
-    const mult = this._paceMultiplier ?? 1;
-    this._logTimer = setTimeout(() => this._processLogQueue(), Math.max(120, baseGap * mult));
   }
 
   _renderLogEntry(message, type = 'normal') {

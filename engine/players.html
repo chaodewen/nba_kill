@@ -155,8 +155,34 @@
     <span class="roster-stat" id="roster-total">16 人</span>
   </header>
   <main class="roster-page-body" id="roster-page-body">
-    <!-- 由 players.bundle.js 渲染填充 -->
+    <div id="roster-loading" style="padding: 40px; text-align: center; color: #888; font-size: 13px;">
+      Loading 16 名球员…
+    </div>
   </main>
+  <script>
+    // 兜底：如果 1.5s 后 body 还只是 loading 占位 → bundle 没跑起来
+    // 三种典型原因：(1) 打开了源文件 file://engine/players.html（同目录无 bundle，bundle 只在 npm run build 后的 dist/）
+    //              (2) Pages 部署还没追上（推 commit 后 30-90s 内访问）
+    //              (3) 极端：浏览器缓存了 bug 版本的 bundle
+    setTimeout(() => {
+      const body = document.getElementById('roster-page-body');
+      const loading = document.getElementById('roster-loading');
+      if (body && body.children.length === 1 && loading && body.firstElementChild === loading) {
+        loading.innerHTML = `⚠️ players.bundle.js 没加载到<br><br>
+          常见原因：<br>
+          1. 你直接打开了源文件 <code>engine/players.html</code> — 同目录没有 bundle。<br>
+             正确方式：<code>npm run dev</code> 后访问 <code>http://localhost:3006/players.html</code>，<br>
+             或部署到 GitHub Pages 用线上链接。<br>
+          2. Pages 部署还没追上（推 commit 后 30-90s 内）。<br>
+          3. 浏览器缓存了老 bundle（试试硬刷新 Cmd+Shift+R / 无痕窗口）。`;
+        loading.style.color = '#e74c3c';
+        loading.style.textAlign = 'left';
+        loading.style.maxWidth = '560px';
+        loading.style.margin = '40px auto';
+        loading.style.lineHeight = '1.6';
+      }
+    }, 1500);
+  </script>
   <script src="players.bundle.js"></script>
 </body>
 </html>

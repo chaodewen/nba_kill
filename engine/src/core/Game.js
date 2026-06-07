@@ -64,17 +64,24 @@ export class Game {
       'updateUI', 'updatePlayer', 'updateButtons', 'updateDistanceLabels',
       'cacheElements', 'shouldShowGuide', 'showGuide', 'showBuildTimestamp',
       'renderPlayers', 'renderHandCards', 'renderEquipment', 'renderHP',
-      'highlightPlayer', 'setPhase', 'addLog', // addLog 内部已有 logQueue，再排会双重延迟
+      'highlightPlayer', 'setPhase',
       'showShanResponseBanner', 'hideShanResponseBanner', 'markShanCandidates', 'clearShanCandidates',
       'showTargetBanner', 'hideTargetBanner', 'markTargetCandidates', 'clearTargetCandidates',
       'showConfirm', 'confirmAction', 'cancelConfirm', 'closeModal',
       'showCardModal', 'showSkillModal', 'showCardTooltip', 'hideCardTooltip', 'updateTooltipPosition',
       'showCardPickModal', 'hideCardPickModal', 'showWinnerModal', 'hideWinnerModal',
-      'showRosterPage', 'hideRosterPage',
       'openSelfDiscardPick', 'showPauseOverlay', 'hidePauseOverlay',
       'toggleSettings', 'filterAllHands', 'clearLog',
     ]);
     const immediateFxMethods = new Set(['unlock', 'setEnabled', 'playFanfare']);
+    // 按 args 动态判断是否旁路 queue：addLog 的 system/turn/phase/death 类即时显示
+    const uiBypass = (prop, args) => {
+      if (prop === 'addLog') {
+        const type = args[1];
+        return type === 'system' || type === 'turn' || type === 'phase' || type === 'death';
+      }
+      return false;
+    };
 
     if (this.headless) {
       this.fx = wrapWithEvents(makeNoopProxy(), this.events, 'fx:');
@@ -84,7 +91,7 @@ export class Game {
     this.fx = wrapWithEvents(new SoundFx(), this.events, 'fx:', this.actionQueue, immediateFxMethods);
     const realRenderer = new Renderer(this);
     realRenderer.cacheElements();
-    this.renderer = wrapWithEvents(realRenderer, this.events, 'ui:', this.actionQueue, immediateUiMethods);
+    this.renderer = wrapWithEvents(realRenderer, this.events, 'ui:', this.actionQueue, immediateUiMethods, uiBypass);
 
     // 显示初始界面
     this.renderer.updateUI(this);
@@ -2323,10 +2330,7 @@ export class Game {
     this.renderer?.addLog?.(`⏱ 节奏切换：${labels[v]}`, 'system');
   }
 
-  setTheme(theme) {
-    this.renderer.setTheme(theme);
-  }
-
+  // 主题切换暂未实装；旧的 setTheme 转发已删
   // 音效开关
   setSound(on) {
     this.fx?.setEnabled?.(on);
@@ -2672,28 +2676,9 @@ export class Game {
     this.renderer.showSkillModal(characterKey);
   }
 
-  closeModal(event) {
-    this.renderer.closeModal(event);
-  }
-
-  showCardModal(cardKey, event) {
-    this.renderer.showCardModal(cardKey, event);
-  }
-
   showRulesModal() {
     this.renderer.elements.rulesModal?.classList.add('show');
   }
-
-  showRosterModal() {
-    this.renderer.showRosterPage?.();
-  }
-
-  hideRosterModal(event) {
-    this.renderer.hideRosterPage?.();
-  }
-
-  showRosterPage() { this.renderer.showRosterPage?.(); }
-  hideRosterPage() { this.renderer.hideRosterPage?.(); }
 
   showDistanceModal(playerIndex) {
     const tag = document.getElementById(`dist-mob-${playerIndex}`);

@@ -62,6 +62,7 @@ export class ActionQueue {
 
   _flush() {
     this._timer = null;
+    this._flushing = true;
     const batch = this._pending;
     this._pending = [];
     const now = (typeof performance !== 'undefined' && performance.now)
@@ -70,7 +71,19 @@ export class ActionQueue {
     for (const fn of batch) {
       try { fn(); } catch (e) {}
     }
-    // 如果在 flush 中又有新 push（比如回调里），下个窗口接上
+    // flush 内可能产生嵌套 enqueue（比如 flashCardPlay 内部调 fx.play）
+    // 把这些"同步触发的"动作也并入当前 batch，避免 fx 比 flash 慢一整波
+    let nestedDepth = 0;
+    while (this._pending.length > 0 && nestedDepth < 8) {
+      nestedDepth++;
+      const nested = this._pending;
+      this._pending = [];
+      for (const fn of nested) {
+        try { fn(); } catch (e) {}
+      }
+    }
+    this._flushing = false;
+    // 嵌套深度溢出（异常情况）：剩余进下波
     if (this._pending.length > 0) this._schedule();
   }
 
@@ -84,15 +97,12 @@ export class ActionQueue {
 
 // 把任意对象（renderer / fx 等）包成"调用即发事件 + 转发原方法"的代理
 // 用法：
-//   const proxy = wrapWithEvents(realRenderer, events, 'ui:', queue, immediateMethods)
-//   proxy.flashCardPlay(p, '投', '#e74c3c')
-//     → 触发：events.emit('ui:flashCardPlay', p, '投', '#e74c3c')
-//             events.emit('*', { type: 'ui:flashCardPlay', args: [...] })
-//             queue.enqueue(() => realRenderer.flashCardPlay(p, '投', '#e74c3c'))
+//   const proxy = wrapWithEvents(realRenderer, events, 'ui:', queue, immediateMethods, bypassFn)
 // queue 不传时立即调用（行为同旧版，向后兼容）
-// immediateMethods 是 Set<string>，匹配的方法名跳过 queue 直接调用
-//   （比如 cacheElements / updateUI / updatePlayer / shouldShowGuide 等纯刷新类）
-export function wrapWithEvents(target, events, prefix = 'ui:', queue = null, immediateMethods = null) {
+// immediateMethods 是 Set<string>，匹配的方法名永远立即调用（不进 queue）
+// bypassFn(prop, args) → 返回 true 表示这次调用立即（按入参动态判断，比 immediateMethods 灵活）
+//   例：addLog 是普通 type 进 queue 排队，但 system/turn/phase/death 类立即渲染
+export function wrapWithEvents(target, events, prefix = 'ui:', queue = null, immediateMethods = null, bypassFn = null) {
   return new Proxy(target, {
     get(obj, prop) {
       const orig = Reflect.get(obj, prop);
@@ -105,7 +115,10 @@ export function wrapWithEvents(target, events, prefix = 'ui:', queue = null, imm
         events.emit(prefix + prop, ...args);
         events.emit('*', { type: prefix + prop, args });
         // 直接调用 vs 入节奏队列
-        if (!queue || (immediateMethods && immediateMethods.has(prop))) {
+        const isImmediate = !queue
+          || (immediateMethods && immediateMethods.has(prop))
+          || (bypassFn && bypassFn(prop, args));
+        if (isImmediate) {
           return orig.apply(obj, args);
         }
         queue.enqueue(() => {
