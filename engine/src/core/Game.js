@@ -799,10 +799,19 @@ export class Game {
     this.renderer.addLog(`⚔️ ${player.character.name} 对 ${target.character.name} 使用【投】`, 'play');
     this.renderer.flashCardPlay(player, '投', '#e74c3c');
 
-    // 触发：被投
-    this.applySkillResult(target, this.skills.checkTrigger(target, 'targeted_by_sha', { target, source: player, card }));
+    // 触发：被投（FMVP 等可能直接取消此投）
+    const tbsResult = this.skills.checkTrigger(target, 'targeted_by_sha', { target, source: player, card });
+    this.applySkillResult(target, tbsResult);
+    if (tbsResult?.shaCancelled) {
+      this.renderer.addLog(`📛 ${target.character.name} 触发【${tbsResult.name}】取消此【投】`, 'skill');
+      player.hasUsedSha = true;
+      if (!card.isVirtual) this.deck.discard(card);
+      this.renderer.updateUI(this);
+      this.continueAfterCard(player, 800);
+      return;
+    }
 
-    // 触发：他人被投 — 可能直接取消此投（Duncan 护框）
+    // 触发：他人被投 — 可能直接取消此投（Duncan 护框 / Iguodala 协防）
     let shaCancelled = false;
     for (const p of this.players) {
       if (shaCancelled) break;
@@ -813,8 +822,18 @@ export class Game {
         if (r.oncePerRound && !this.consumeOncePerRound(p, r.name)) continue;
         const idx = p.handCards.findIndex(c => c.key === 'shan');
         const shan = p.handCards.splice(idx, 1)[0];
-        this.deck.discard(shan);
+        this.discardWithFlash(shan, p);
         this.renderer.addLog(`✨ ${p.character.name} 发动【${r.name}】 — 弃【盖】令此【投】无效`, 'skill');
+        this.renderer.flashCardPlay(p, '盖', '#3498db');
+        this.renderer.updatePlayer(p);
+        shaCancelled = true;
+      } else if (r.effect === 'shan_for_other' && p.hasCard('shan') && target.hp < p.hp) {
+        // Iguodala 协防：体能比 target 高时替其出盖
+        const idx = p.handCards.findIndex(c => c.key === 'shan');
+        const shan = p.handCards.splice(idx, 1)[0];
+        this.discardWithFlash(shan, p);
+        this.renderer.addLog(`✨ ${p.character.name} 发动【${r.name}】，替 ${target.character.name} 出一张【盖】`, 'skill');
+        this.renderer.flashCardPlay(p, '盖', '#3498db');
         this.renderer.updatePlayer(p);
         shaCancelled = true;
       } else {
@@ -1439,6 +1458,51 @@ export class Game {
         log(`弃【${c.name}】，伤害 -1`);
         this.renderer.updatePlayer(player);
         result.damageDelta = -1;
+        return true;
+      }
+
+      // Paul 控场：把一张手牌给一名队友，然后摸 1 张
+      case 'give_one_then_draw': {
+        if (player.handCards.length === 0) return false;
+        const allies = this.players.filter(p => p !== player && p.isAlive && !isEnemy(player, p));
+        const recipient = allies[0] || this.players.find(p => p !== player && p.isAlive);
+        if (!recipient) return false;
+        // AI：给第一张牌（最早抓到的，通常优先级低）
+        const give = player.handCards.shift();
+        recipient.handCards.push(give);
+        const drawn = this.deck.drawMultiple(1);
+        player.drawCards(drawn);
+        log(`将【${give.name}】交给 ${recipient.character.name}，然后摸 1 张牌`);
+        this.renderer.updatePlayer(player);
+        this.renderer.updatePlayer(recipient);
+        return true;
+      }
+
+      // Iguodala FMVP：摸 1 张然后弃 1 张；若弃的是【盖】则此投无效
+      case 'draw_then_discard_maybe_cancel': {
+        const drawCount = result.drawCount || 1;
+        const drawn = this.deck.drawMultiple(drawCount);
+        player.drawCards(drawn);
+        log(`摸 ${drawCount} 张牌`);
+        if (player.handCards.length === 0) {
+          this.renderer.updatePlayer(player);
+          return true;
+        }
+        // 优先弃 shan 取消此投
+        let dIdx = -1;
+        if (result.cancelOnDiscardShan) {
+          dIdx = player.handCards.findIndex(c => c.key === 'shan');
+        }
+        if (dIdx === -1) dIdx = Math.floor(Math.random() * player.handCards.length);
+        const c = player.handCards.splice(dIdx, 1)[0];
+        this.discardWithFlash(c, player);
+        if (c.key === 'shan' && result.cancelOnDiscardShan) {
+          log(`弃【${c.name}】令此【投】无效`);
+          result.shaCancelled = true;
+        } else {
+          log(`弃【${c.name}】`);
+        }
+        this.renderer.updatePlayer(player);
         return true;
       }
 
