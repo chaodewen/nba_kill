@@ -910,7 +910,8 @@ export class Game {
       this.applySkillResult(player, this.skills.checkTrigger(player, 'sha_dodged', { source: player, target, card }));
     };
 
-    setTimeout(() => {
+    const proceedShaResolution = () => {
+      setTimeout(() => {
       if (decision.useBagua) {
         const judgeCard = this.deck.judge();
         const isRed = judgeCard && (judgeCard.suit === 'heart' || judgeCard.suit === 'diamond');
@@ -1020,6 +1021,41 @@ export class Game {
       this.renderer.updateUI(this);
       this.continueAfterCard(player, 400);
     }, 2000);
+    };
+
+    // 人类作为目标时，让玩家自己选是否出盖（不再自动）
+    if (target.isHuman && !unblockable) {
+      const hasShan = target.handCards.some(c => c.key === 'shan');
+      const hasBaguaArmor = typeof target.hasBagua === 'function' && target.hasBagua();
+      // Battier 站位 — 黑色手牌也算
+      const battierBlackShan = target.character?.key === 'shane_battier'
+        && target.handCards.some(c => c.key !== 'shan' && (c.suit === 'spade' || c.suit === 'club'));
+      if (hasShan || hasBaguaArmor || battierBlackShan) {
+        const text = hasShan
+          ? `你有 ${target.handCards.filter(c => c.key === 'shan').length} 张【盖】，出盖抵消？`
+          : (battierBlackShan
+              ? `你的【站位】允许把黑色手牌当【盖】，出盖抵消？`
+              : `你装备了【运动眼镜】（联防体系），是否触发判定？`);
+        this.renderer.showConfirm(
+          `⚔️ ${player.character.name} 对你出【投】！`,
+          text,
+          () => {
+            if (hasShan || battierBlackShan) decision.useShan = true;
+            else if (hasBaguaArmor) decision.useBagua = true;
+            proceedShaResolution();
+          },
+          () => {
+            decision.useShan = false;
+            decision.useBagua = false;
+            proceedShaResolution();
+          }
+        );
+        this.renderer.elements.confirmBtn.onclick = () => this.renderer.confirmAction();
+        return;
+      }
+    }
+
+    proceedShaResolution();
   }
 
   handleTao(player, target) {
@@ -1371,23 +1407,44 @@ export class Game {
     }
 
     const hasCard = p.handCards.some(c => c.key === requiredKey);
-    if (hasCard) {
+
+    const useResponseCard = () => {
       const i = p.handCards.findIndex(c => c.key === requiredKey);
       const used = p.handCards.splice(i, 1)[0];
-      this.deck.discard(used);
+      this.discardWithFlash(used, p);
       this.renderer.addLog(`🛡️ ${p.character.name} 打出【${requiredName}】抵消`, 'normal');
       const color = requiredKey === 'shan' ? '#3498db' : '#e74c3c';
       this.renderer.flashCardPlay(p, requiredName, color);
-    } else {
+      this.renderer.updatePlayer(p);
+      this.renderer.updateUI(this);
+      setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2000);
+    };
+
+    const takeDamage = () => {
       p.takeDamage(1);
       this.renderer.flashHpDelta?.(p, -1);
       this.renderer.addLog(`💥 ${p.character.name} 没有【${requiredName}】，受到 1 点伤害（剩余 ${p.hp}）`, 'play');
       this.checkDeath(p, source);
-    }
-    this.renderer.updatePlayer(p);
-    this.renderer.updateUI(this);
+      this.renderer.updatePlayer(p);
+      this.renderer.updateUI(this);
+      setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2000);
+    };
 
-    setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2000);
+    // 人类作为目标：弹窗让玩家自己选
+    if (p.isHuman && hasCard) {
+      this.renderer.showConfirm(
+        `📜 ${source.character.name} 使用【${aoeName}】！`,
+        `你需要打出一张【${requiredName}】抵消，否则受 1 点伤害。要打出吗？`,
+        () => useResponseCard(),
+        () => takeDamage()
+      );
+      this.renderer.elements.confirmBtn.onclick = () => this.renderer.confirmAction();
+      return;
+    }
+
+    // AI 自动决策（保留原逻辑）
+    if (hasCard) useResponseCard();
+    else takeDamage();
   }
 
   handleLebu(player, target, card) {

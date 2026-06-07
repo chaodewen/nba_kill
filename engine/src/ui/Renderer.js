@@ -569,11 +569,12 @@ export class Renderer {
   }
 
   // 确认弹窗
-  showConfirm(title, desc, onConfirm) {
+  showConfirm(title, desc, onConfirm, onCancel) {
     this.elements.confirmTitle.textContent = title;
     this.elements.confirmDesc.textContent = desc;
     this.elements.confirmModal.classList.add('show');
     this._confirmCallback = onConfirm;
+    this._cancelCallback = onCancel;
   }
 
   confirmAction() {
@@ -582,10 +583,15 @@ export class Renderer {
       this._confirmCallback();
       this._confirmCallback = null;
     }
+    this._cancelCallback = null;
   }
 
   cancelConfirm() {
     this.elements.confirmModal.classList.remove('show');
+    if (this._cancelCallback) {
+      this._cancelCallback();
+      this._cancelCallback = null;
+    }
     this._confirmCallback = null;
   }
 
