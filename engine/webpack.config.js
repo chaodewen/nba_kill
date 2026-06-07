@@ -2,12 +2,29 @@ const path = require('path');
 const webpack = require('webpack');
 const fs = require('fs');
 
-class CopyIndexPlugin {
+function copyDirSync(src, dest) {
+  if (!fs.existsSync(src)) return;
+  fs.mkdirSync(dest, { recursive: true });
+  for (const entry of fs.readdirSync(src, { withFileTypes: true })) {
+    const s = path.join(src, entry.name);
+    const d = path.join(dest, entry.name);
+    if (entry.isDirectory()) copyDirSync(s, d);
+    else fs.copyFileSync(s, d);
+  }
+}
+
+class CopyStaticPlugin {
   apply(compiler) {
-    compiler.hooks.afterEmit.tap('CopyIndexPlugin', () => {
+    compiler.hooks.afterEmit.tap('CopyStaticPlugin', () => {
+      // index.html
       fs.copyFileSync(
         path.resolve(__dirname, 'index.html'),
         path.resolve(__dirname, 'dist', 'index.html')
+      );
+      // voice/ — Edge TTS 预生成的 mp3 包（杨毅风男声）
+      copyDirSync(
+        path.resolve(__dirname, 'voice'),
+        path.resolve(__dirname, 'dist', 'voice')
       );
     });
   }
@@ -31,7 +48,7 @@ module.exports = {
         minute: '2-digit'
       }))
     }),
-    new CopyIndexPlugin()
+    new CopyStaticPlugin()
   ],
   devServer: {
     static: {

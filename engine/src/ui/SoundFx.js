@@ -56,7 +56,26 @@ export class SoundFx {
     this.synth = (typeof window !== 'undefined') ? window.speechSynthesis : null;
     this.zhVoice = null;
     this.enVoice = null;
+    // mp3 优先：manifest 是 { "投篮！": "/voice/abc.mp3", ... }
+    // 命中走预生成的 zh-CN-YunjianNeural（Microsoft Edge TTS 的体育解说男声）；
+    // 命中不上才 fallback 到浏览器 SpeechSynthesis
+    this.mp3Manifest = null;
+    this._audioCache = new Map();
     this._loadVoices();
+    this._loadMp3Manifest();
+  }
+
+  async _loadMp3Manifest() {
+    if (typeof window === 'undefined' || typeof fetch === 'undefined') return;
+    try {
+      const base = (window.__VOICE_BASE__ || './voice') + '/manifest.json';
+      const res = await fetch(base, { cache: 'force-cache' });
+      if (!res.ok) return;
+      this.mp3Manifest = await res.json();
+    } catch (e) {
+      // 没生成过 mp3 — 安静 fallback 到 SpeechSynthesis
+      this.mp3Manifest = null;
+    }
   }
 
   _loadVoices() {
@@ -129,21 +148,45 @@ export class SoundFx {
   }
 
   // 喊牌名 / 解说语：杨毅风格 — 偏成熟男声节奏
-  // 队列管理：不再 cancel 上一句，避免 AOE / 连锁动作把前面的语音打断
+  // 优先级：(1) 命中 mp3 manifest → 用预生成的 Yunjian 男声播 mp3；
+  //        (2) 没命中 → SpeechSynthesis 极限调音（pitch 0.5）模拟低沉男声
   // lang: 'zh' (默认 中文) | 'en' (英文 — NBA 球员名朗读)
   speak(text, lang = 'zh') {
-    if (!this.enabled || !this.synth || !text) return;
+    if (!this.enabled || !text) return;
+    const key = String(text).trim();
+
+    // (1) mp3 优先
+    if (lang === 'zh' && this.mp3Manifest && this.mp3Manifest[key]) {
+      this._playMp3(this.mp3Manifest[key]);
+      return;
+    }
+
+    // (2) Fallback: SpeechSynthesis
+    if (!this.synth) return;
     try {
-      const u = new SpeechSynthesisUtterance(String(text));
+      const u = new SpeechSynthesisUtterance(key);
       const isEn = lang === 'en';
       u.lang = isEn ? 'en-US' : 'zh-CN';
-      u.rate = isEn ? 1.05 : 1.0;
-      // 杨毅风：成熟稳重，pitch 偏低；如果系统真的有中文男声 voice 则正常 1.0，否则压到 0.78 让女声听起来沉
-      u.pitch = isEn ? 1.0 : (this.zhVoiceIsMale ? 0.95 : 0.78);
+      u.rate = isEn ? 1.05 : 0.92;
+      // 极限低 pitch 让女声听起来非常低沉接近成熟男解说（在没装中文男声 voice 的系统上必要）
+      u.pitch = isEn ? 1.0 : (this.zhVoiceIsMale ? 0.95 : 0.5);
       u.volume = 1.0;
       const v = isEn ? this.enVoice : this.zhVoice;
       if (v) u.voice = v;
       this.synth.speak(u);
+    } catch (e) {}
+  }
+
+  _playMp3(url) {
+    try {
+      let audio = this._audioCache.get(url);
+      if (!audio) {
+        audio = new Audio(url);
+        audio.preload = 'auto';
+        this._audioCache.set(url, audio);
+      }
+      audio.currentTime = 0;
+      audio.play().catch(() => {});
     } catch (e) {}
   }
 

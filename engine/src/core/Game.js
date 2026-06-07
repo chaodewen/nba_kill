@@ -1141,10 +1141,14 @@ export class Game {
 
     // 决斗规则：被使用方（target）先出【投】，然后 source，交替直到一方无法响应；
     // 决斗中出的【投】不计入回合"每回合一张投"限制（不动 hasUsedSha）
+    // human 作为 current 时不再自动 splice，而是开 pendingShanResponse banner 让自己选哪张投 / 受伤
     const round = (current, other) => {
-      const shaIdx = current.handCards.findIndex(c => c.key === 'sha');
-      if (shaIdx === -1) {
-        // current 无法出 → 受 1 点伤害
+      // stale guard
+      if (this.gameState !== 'playing' || this.isPaused) return;
+
+      const hasSha = current.handCards.some(c => c.key === 'sha');
+
+      const finishWithDamage = () => {
         current.takeDamage(1);
         this.renderer.flashHpDelta?.(current, -1);
         this.renderer.updatePlayer(current);
@@ -1157,14 +1161,44 @@ export class Game {
           this.renderer.updateUI(this);
           this.continueAfterCard(player, 400);
         }, 1200);
+      };
+
+      if (!hasSha) {
+        finishWithDamage();
         return;
       }
-      const sha = current.handCards.splice(shaIdx, 1)[0];
-      this.discardWithFlash(sha, current);
-      this.renderer.flashCardPlay(current, '投', '#e74c3c');
-      this.renderer.addLog(`${current.character.name} 打出【投】`, 'normal');
-      this.renderer.updatePlayer(current);
-      setTimeout(() => round(other, current), 1500);
+
+      const playOneSha = (alreadyConsumed) => {
+        if (!alreadyConsumed) {
+          const i = current.handCards.findIndex(c => c.key === 'sha');
+          const sha = current.handCards.splice(i, 1)[0];
+          this.discardWithFlash(sha, current);
+        }
+        this.renderer.flashCardPlay(current, '投', '#e74c3c');
+        this.renderer.addLog(`${current.character.name} 打出【投】`, 'normal');
+        this.renderer.updatePlayer(current);
+        setTimeout(() => round(other, current), 1500);
+      };
+
+      // human 当出投方：banner + 点投牌选 / 受伤按钮
+      if (current.isHuman) {
+        this.renderer.flashTargeted?.(current);
+        this.pendingShanResponse = {
+          target: current,
+          source: other,
+          card: null,
+          requiredKey: 'sha',
+          requiredName: '投',
+          onShan: () => playOneSha(true),  // playHandCard 已 splice 消耗
+          onSkip: () => finishWithDamage(),
+        };
+        this.renderer.showShanResponseBanner(`${other.character.name} 的【决斗】 - 出【投】或受伤`, 1);
+        this.renderer.markShanCandidates(current, 'sha');
+        return;
+      }
+
+      // AI 自动出投
+      playOneSha(false);
     };
 
     // target 先响应（被指定方先打投）
@@ -1435,6 +1469,8 @@ export class Game {
 
   // 全场紧逼/三分雨 — 每个目标依次反应，每段 2 秒，便于看清谁中招
   processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx) {
+    // stale guard：游戏结束 / 暂停 / 该回合已被中断都直接退出，避免 AOE 在错的时点继续 fire
+    if (this.gameState !== 'playing' || this.isPaused) return;
     if (idx >= targets.length) {
       this.renderer.updateUI(this);
       this.continueAfterCard(source, 400);
@@ -1458,7 +1494,8 @@ export class Game {
       this.renderer.flashCardPlay(p, requiredName, color);
       this.renderer.updatePlayer(p);
       this.renderer.updateUI(this);
-      setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2000);
+      // 间隔从 2s → 2.5s，让玩家看清楚每个目标的响应再切下一个
+      setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2500);
     };
 
     const useResponseCard = () => {
@@ -1475,7 +1512,7 @@ export class Game {
       this.checkDeath(p, source);
       this.renderer.updatePlayer(p);
       this.renderer.updateUI(this);
-      setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2000);
+      setTimeout(() => this.processAoeSequential(source, targets, requiredKey, requiredName, aoeName, idx + 1), 2500);
     };
 
     // 人类作为目标：复用 pendingShanResponse 模式 — banner + 手牌点击 + 受伤按钮
