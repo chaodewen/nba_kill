@@ -8,7 +8,7 @@ import { Deck } from './Deck';
 import { SkillSystem } from './Skills';
 import { Renderer } from '../ui/Renderer';
 import { SoundFx } from '../ui/SoundFx';
-import { EventBus, wrapWithEvents, makeNoopProxy } from './EventBus';
+import { EventBus, ActionQueue, wrapWithEvents, makeNoopProxy } from './EventBus';
 import {
   calculateDistance, canAttack, getShaDamage, getRequiredShanCount,
   checkGameOver, getAlivePlayers, getNextAlivePlayer,
@@ -23,6 +23,8 @@ export class Game {
     this.renderer = null;
     // 事件总线 — 所有 ui / fx 调用都会经此 emit，便于多人同步与 headless 跑
     this.events = new EventBus();
+    // 节奏窗口 — fx/动效/普通 log 都进队按 1.5s 节奏 fire（让特效声音对齐日志停顿）
+    this.actionQueue = new ActionQueue(1500);
     // headless 模式：不创建真 Renderer / SoundFx，所有调用走 noop（Node / 测试 / 远端纯渲染端用）
     this.headless = !!options.headless || (typeof window === 'undefined');
 
@@ -57,15 +59,32 @@ export class Game {
     // 初始化音效系统 / 渲染器
     // headless 模式（Node / 测试 / 仅订阅事件的远端）：用 noop proxy；真实环境：用真 Renderer / SoundFx
     // 不论哪种模式，外层都套 wrapWithEvents — 调用即 emit，多人同步用统一 hook
+    // fx / 动效类调用进 actionQueue（1.5s 节奏），刷新类（updateUI/updatePlayer/cacheElements/...）立即调用避免视觉滞后
+    const immediateUiMethods = new Set([
+      'updateUI', 'updatePlayer', 'updateButtons', 'updateDistanceLabels',
+      'cacheElements', 'shouldShowGuide', 'showGuide', 'showBuildTimestamp',
+      'renderPlayers', 'renderHandCards', 'renderEquipment', 'renderHP',
+      'highlightPlayer', 'setPhase', 'addLog', // addLog 内部已有 logQueue，再排会双重延迟
+      'showShanResponseBanner', 'hideShanResponseBanner', 'markShanCandidates', 'clearShanCandidates',
+      'showTargetBanner', 'hideTargetBanner', 'markTargetCandidates', 'clearTargetCandidates',
+      'showConfirm', 'confirmAction', 'cancelConfirm', 'closeModal',
+      'showCardModal', 'showSkillModal', 'showCardTooltip', 'hideCardTooltip', 'updateTooltipPosition',
+      'showCardPickModal', 'hideCardPickModal', 'showWinnerModal', 'hideWinnerModal',
+      'showRosterPage', 'hideRosterPage',
+      'openSelfDiscardPick', 'showPauseOverlay', 'hidePauseOverlay',
+      'toggleSettings', 'filterAllHands', 'clearLog',
+    ]);
+    const immediateFxMethods = new Set(['unlock', 'setEnabled', 'playFanfare']);
+
     if (this.headless) {
       this.fx = wrapWithEvents(makeNoopProxy(), this.events, 'fx:');
       this.renderer = wrapWithEvents(makeNoopProxy(), this.events, 'ui:');
       return;
     }
-    this.fx = wrapWithEvents(new SoundFx(), this.events, 'fx:');
+    this.fx = wrapWithEvents(new SoundFx(), this.events, 'fx:', this.actionQueue, immediateFxMethods);
     const realRenderer = new Renderer(this);
     realRenderer.cacheElements();
-    this.renderer = wrapWithEvents(realRenderer, this.events, 'ui:');
+    this.renderer = wrapWithEvents(realRenderer, this.events, 'ui:', this.actionQueue, immediateUiMethods);
 
     // 显示初始界面
     this.renderer.updateUI(this);
@@ -149,6 +168,8 @@ export class Game {
   }
 
   doStartGame() {
+    // 清掉上一局残余的节奏 batch，避免老 fx/flash 在新局 fire
+    this.actionQueue?.clear?.();
     // 读取玩家选择的人数
     const sel = typeof document !== 'undefined' && document.getElementById('player-count-select');
     if (sel) {

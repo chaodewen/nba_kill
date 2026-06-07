@@ -1,23 +1,29 @@
 /**
- * 给 dist/index.html 中的静态资源加时间戳，避免浏览器缓存。
- *
- * 注意：只改 dist/index.html（构建产物），不动源 engine/index.html。
- * webpack.config.js 里的 CopyIndexPlugin 已经在 afterEmit 把源 index.html 复制到 dist/，
- * 这里再追加 cache-busting 时间戳。源文件保持干净，npm run build 不再污染 git。
+ * 给 dist/*.html 中的静态资源加时间戳，避免浏览器缓存。
+ * 只改 dist/*.html（构建产物），不动源 engine/*.html。
  */
 const fs = require('fs');
 const path = require('path');
 
 const timestamp = Date.now();
-const distIndex = path.join(__dirname, '..', 'dist', 'index.html');
+const distDir = path.join(__dirname, '..', 'dist');
 
-if (!fs.existsSync(distIndex)) {
-  console.error('❌ dist/index.html 不存在 — 请先跑 webpack 构建');
-  process.exit(1);
+const targets = [
+  { file: 'index.html', bundles: ['game.bundle.js'] },
+  { file: 'players.html', bundles: ['players.bundle.js'] },
+];
+
+for (const { file, bundles } of targets) {
+  const p = path.join(distDir, file);
+  if (!fs.existsSync(p)) {
+    console.warn(`⚠️ ${file} 不存在，跳过`);
+    continue;
+  }
+  let html = fs.readFileSync(p, 'utf8');
+  for (const b of bundles) {
+    const re = new RegExp(b.replace('.', '\\.') + '(\\?v=\\d+)?', 'g');
+    html = html.replace(re, `${b}?v=${timestamp}`);
+  }
+  fs.writeFileSync(p, html);
+  console.log(`✅ ${file} 加时间戳: v=${timestamp}`);
 }
-
-let html = fs.readFileSync(distIndex, 'utf8');
-html = html.replace(/game\.bundle\.js(\?v=\d+)?/g, `game.bundle.js?v=${timestamp}`);
-fs.writeFileSync(distIndex, html);
-
-console.log(`✅ 已添加时间戳到 dist/index.html: v=${timestamp}`);

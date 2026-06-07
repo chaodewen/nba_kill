@@ -16,10 +16,15 @@ function copyDirSync(src, dest) {
 class CopyStaticPlugin {
   apply(compiler) {
     compiler.hooks.afterEmit.tap('CopyStaticPlugin', () => {
-      // index.html
+      // index.html — 主页（游戏入口）
       fs.copyFileSync(
         path.resolve(__dirname, 'index.html'),
         path.resolve(__dirname, 'dist', 'index.html')
+      );
+      // players.html — 球员图鉴独立页（新 tab 打开）
+      fs.copyFileSync(
+        path.resolve(__dirname, 'players.html'),
+        path.resolve(__dirname, 'dist', 'players.html')
       );
       // voice/ — Edge TTS 预生成的 mp3 包（杨毅风男声）
       copyDirSync(
@@ -31,9 +36,12 @@ class CopyStaticPlugin {
 }
 
 module.exports = {
-  entry: './src/main.js',
+  entry: {
+    main: './src/main.js',          // 主页 game.bundle.js
+    players: './src/players.js',    // 球员图鉴 players.bundle.js
+  },
   output: {
-    filename: 'game.bundle.js',
+    filename: (pathData) => pathData.chunk.name === 'main' ? 'game.bundle.js' : '[name].bundle.js',
     path: path.resolve(__dirname, 'dist'),
     clean: true
   },
