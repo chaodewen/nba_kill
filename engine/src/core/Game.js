@@ -886,6 +886,21 @@ export class Game {
             this.renderer.addLog(`🛡️ ${target.character.name} 触发【禁区铁壁 · 禁区轮转】，伤害 -1`, 'skill');
           }
         }
+        // KG 协防：他人在 KG 攻击范围内将受到投伤害时，KG 弃 1 张令伤害 -1
+        if (damage > 0) {
+          for (const p of this.players) {
+            if (!p.isAlive || p === target || p === player) continue;
+            const r = this.skills?.checkTrigger?.(p, 'other_about_to_damage', { source: player, target, card });
+            if (r?.effect === 'discard_reduce_damage') {
+              const handled = this.applySkillResult(p, r);
+              if (handled && r.damageDelta) {
+                damage = Math.max(0, damage + r.damageDelta);
+                this.renderer.addLog(`🛡️ ${target.character.name} 受到的伤害变为 ${damage}`, 'skill');
+                if (damage <= 0) break;
+              }
+            }
+          }
+        }
         target.takeDamage(damage);
         this.renderer.updatePlayer(target);
         this.renderer.flashHpDelta?.(target, -damage);
@@ -948,6 +963,7 @@ export class Game {
   handleJuedou(player, target, card) {
     this.renderer.addLog(`⚔️ 对 ${target.character.name} 使用【决斗】`, 'play');
     this.renderer.flashCardPlay(player, '单挑', '#e67e22');
+    this.fireSingleTargetScroll(player, target, card);
 
     // 默认每边 1 张投；NBA 球员的施压技能由技能系统处理
     const needShaCount = 1;
@@ -990,6 +1006,13 @@ export class Game {
       this.renderer.updateUI(this);
       this.continueAfterCard(player, 400);
     }, 2000);
+  }
+
+  // 触发 used_single_target_scroll — 用于 Manu 奇袭（指定唯一目标的锦囊后令目标弃 1 张）
+  fireSingleTargetScroll(source, target, card) {
+    if (!source || !target) return;
+    const r = this.skills?.checkTrigger?.(source, 'used_single_target_scroll', { source, target, card });
+    if (r) this.applySkillResult(source, r);
   }
 
   // 触发 card_discarded — 用于 Howard 篮板（每回合首张被弃基本牌）
@@ -1048,6 +1071,7 @@ export class Game {
     } else {
       this.renderer.addLog(`${target.character.name} 没有手牌`, 'normal');
     }
+    this.fireSingleTargetScroll(player, target, actionCard);
     this.renderer.updateUI(this);
     this.continueAfterCard(player, 400);
   }
@@ -1074,6 +1098,7 @@ export class Game {
     } else {
       this.renderer.addLog(`${target.character.name} 没有手牌`, 'normal');
     }
+    this.fireSingleTargetScroll(player, target, actionCard);
     this.renderer.updateUI(this);
     this.continueAfterCard(player, 400);
   }
@@ -1162,9 +1187,11 @@ export class Game {
     if (action === 'shunshou') {
       source.handCards.push(card);
       this.renderer.addLog(`✋ ${source.character.name} 从 ${target.character.name} 处摘走【${card.name}】`, 'play');
+      this.fireSingleTargetScroll(source, target, ctx.actionCard);
     } else if (action === 'guoheshuang') {
       this.discardWithFlash(card, target);
       this.renderer.addLog(`🗑️ ${source.character.name} 弃置 ${target.character.name} 的【${card.name}】`, 'play');
+      this.fireSingleTargetScroll(source, target, ctx.actionCard);
     } else if (action === 'skill_discard') {
       this.discardWithFlash(card, target);
       this.renderer.addLog(`✨ ${source.character.name} 发动【${skillName}】，弃置 ${target.character.name} 的【${card.name}】`, 'skill');
@@ -1286,6 +1313,7 @@ export class Game {
     target.judgeCards.push(card);
     this.renderer.addLog(`🎭 对 ${target.character.name} 使用【犯规麻烦】`, 'play');
     this.renderer.flashCardPlay(player, '犯规麻烦', '#f39c12');
+    this.fireSingleTargetScroll(player, target, card);
     this.renderer.updateUI(this);
     this.continueAfterCard(player, 400);
   }
@@ -1300,6 +1328,7 @@ export class Game {
     target.judgeCards.push(card);
     this.renderer.addLog(`🍚 对 ${target.character.name} 使用【体能危机】（下回合摸牌阶段判定）`, 'play');
     this.renderer.flashCardPlay(player, '体能危机', '#d35400');
+    this.fireSingleTargetScroll(player, target, card);
     this.renderer.updatePlayer(target);
     this.renderer.updateUI(this);
     this.continueAfterCard(player, 400);
