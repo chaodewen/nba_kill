@@ -2513,6 +2513,12 @@ export class Game {
     this.renderer.elements.rulesModal?.classList.add('show');
   }
 
+  showDistanceModal(playerIndex) {
+    const tag = document.getElementById(`dist-mob-${playerIndex}`);
+    const text = tag?.title || '距离：你与该球员的攻击距离。\n相邻座位距离 1，越远数字越大；不在攻击范围则需要装备武器或技能拉远射程。';
+    this.renderer.showConfirm('距离说明', text, () => {});
+  }
+
   hideRulesModal(event) {
     if (event && event.target && event.target !== this.renderer.elements.rulesModal) return;
     this.renderer.elements.rulesModal?.classList.remove('show');

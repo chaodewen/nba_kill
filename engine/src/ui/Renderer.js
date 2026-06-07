@@ -282,6 +282,11 @@ export class Renderer {
         </div>
       </div>
 
+      <div class="mobile-meta-row" aria-hidden="true">
+        <span class="mobile-pos position-${position.key || 'unknown'}" title="位置：${position.name}\n协同：${position.synergy}">${position.short || position.name}</span>
+        <span class="mobile-dist" id="dist-mob-${player.index}" title="距离：你与该球员的攻击距离（点击查看说明）" onclick="event.stopPropagation(); game.showDistanceModal && game.showDistanceModal(${player.index})"></span>
+      </div>
+
       <div class="hp-display" id="hp-${player.index}" title="当前体能 / 体能上限（HP）">${this.renderHP(player.hp, player.maxHp)}</div>
       <div class="equipment-bar" id="equip-${player.index}" title="装备区（武器、防具、战靴）">${this.renderEquipment(player)}</div>
       ${handHtml}
@@ -963,25 +968,30 @@ export class Renderer {
     if (!currentPlayer || !players) return;
     players.forEach(p => {
       const tag = document.getElementById(`dist-${p.index}`);
-      if (!tag) return;
-      if (p === currentPlayer) {
-        // 当前回合不再标文字，靠卡片黄色描边动效区分
-        tag.textContent = '';
-        tag.className = 'distance-tag self';
-        tag.title = '';
-        return;
-      }
-      if (!p.isAlive) {
-        tag.textContent = '阵亡';
-        tag.className = 'distance-tag out-of-range';
-        return;
-      }
-      const dist = calculateDistance(currentPlayer, p, players);
-      const range = currentPlayer.getAttackRange?.() || 1;
-      const inRange = dist <= range;
-      tag.textContent = `${dist}`;
-      tag.className = `distance-tag ${inRange ? '' : 'out-of-range'}`;
-      tag.title = `距离 ${dist}\n${currentPlayer.character?.name || '当前角色'} 攻击范围 ${range}\n相邻座位距离 1，越远数字越大；不在攻击范围则需要装备武器或技能拉远射程`;
+      const tagMob = document.getElementById(`dist-mob-${p.index}`);
+      if (!tag && !tagMob) return;
+      const apply = (el, isMobile) => {
+        if (!el) return;
+        if (p === currentPlayer) {
+          el.textContent = isMobile ? '我' : '';
+          el.className = `${isMobile ? 'mobile-dist' : 'distance-tag'} self`;
+          el.title = '';
+          return;
+        }
+        if (!p.isAlive) {
+          el.textContent = '阵亡';
+          el.className = `${isMobile ? 'mobile-dist' : 'distance-tag'} out-of-range`;
+          return;
+        }
+        const dist = calculateDistance(currentPlayer, p, players);
+        const range = currentPlayer.getAttackRange?.() || 1;
+        const inRange = dist <= range;
+        el.textContent = isMobile ? `距${dist}` : `${dist}`;
+        el.className = `${isMobile ? 'mobile-dist' : 'distance-tag'} ${inRange ? '' : 'out-of-range'}`;
+        el.title = `距离 ${dist}\n${currentPlayer.character?.name || '当前角色'} 攻击范围 ${range}\n相邻座位距离 1，越远数字越大；不在攻击范围则需要装备武器或技能拉远射程`;
+      };
+      apply(tag, false);
+      apply(tagMob, true);
     });
   }
 

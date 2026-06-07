@@ -507,7 +507,10 @@
       gap: 0.35em;
       overflow: hidden;
     }
-    
+
+    /* mobile-meta-row（位置+距离行）仅 mobile @media 内显示 */
+    .mobile-meta-row { display: none; }
+
     .player-card.active {
       background: var(--bg-active);
       border-color: var(--primary);
@@ -2199,7 +2202,6 @@
 
       /* —— 玩家卡内部内聚布局：iPhone 16 ≈ 100x115px 卡内信息分层 —— */
       .player-card { padding: 3px 4px 2px !important; gap: 1px !important; min-height: 0 !important; overflow: visible !important; }
-      .opp-seat .player-card { padding: 3px 4px 2px !important; }
 
       /* 名字 / 身份 tag 浮在卡片上方（节省卡内空间） */
       .opp-seat .player-name-row {
@@ -2226,24 +2228,123 @@
         text-overflow: clip !important;
         white-space: nowrap !important;
       }
-      .opp-seat .player-info { padding-top: 0 !important; }
-      .opp-seat .player-skill { display: none !important; }
 
-      /* 顶部：头像 + HP（不再有名字占位） */
-      .opp-seat .player-header { gap: 4px !important; margin-bottom: 1px !important; align-items: center !important; }
-      .opp-seat .player-avatar-wrap { gap: 0 !important; }
-      .opp-seat .player-avatar { width: 28px !important; height: 28px !important; font-size: 12px !important; border-width: 1.5px !important; }
-      .opp-seat .position-tag { font-size: 8px !important; padding: 0 3px !important; line-height: 1.4 !important; margin-top: 1px !important; }
-      .opp-seat .identity-tag { font-size: 8px !important; padding: 0 4px !important; line-height: 1.4 !important; }
-      .opp-seat .distance-tag { font-size: 10px !important; padding: 1px 4px !important; min-width: 14px !important; top: 2px !important; right: 2px !important; line-height: 1.1; font-weight: 800; }
+      /* —— 对手卡（不含 self）使用 grid 重排：左列 头像/HP，右列 位置距离/手牌，底部 装备+战术牌 —— */
+      .opp-seat:not(.seat-human) .player-card {
+        display: grid !important;
+        grid-template-columns: 30px 1fr;
+        grid-template-rows: auto 1fr auto;
+        grid-template-areas:
+          "avatar  meta"
+          "avatar  hand"
+          "hp      hand"
+          "equip   equip";
+        column-gap: 4px;
+        row-gap: 1px;
+        padding: 4px 4px 3px !important;
+      }
+      .opp-seat:not(.seat-human) .player-header { display: contents !important; }
+      .opp-seat:not(.seat-human) .player-avatar-wrap {
+        grid-area: avatar;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 0 !important;
+        align-self: start;
+      }
+      .opp-seat:not(.seat-human) .player-info { display: none !important; }
 
-      /* HP 行 */
-      .opp-seat .hp-display { font-size: 11px !important; margin-bottom: 0 !important; gap: 1px !important; line-height: 1.1 !important; }
-      .opp-seat .hp-number { font-size: 13px !important; }
+      /* 桌面 distance-tag 在 mobile 隐藏（用 mobile-meta-row 中的 mobile-dist 替代） */
+      .opp-seat:not(.seat-human) > .distance-tag { display: none !important; }
 
-      /* 装备栏：图标化，文字省 */
-      .opp-seat .equipment-bar { gap: 2px !important; flex-wrap: wrap !important; line-height: 1 !important; }
-      .opp-seat .equip-tag {
+      .opp-seat:not(.seat-human) .mobile-meta-row {
+        grid-area: meta;
+        display: flex !important;
+        align-items: center;
+        justify-content: space-between;
+        gap: 4px;
+        padding: 0 1px;
+      }
+      .opp-seat:not(.seat-human) .mobile-pos {
+        font-size: 9px;
+        line-height: 1.3;
+        padding: 1px 5px;
+        border-radius: 6px;
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-secondary, #aaa);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .opp-seat:not(.seat-human) .mobile-pos.position-inside { color: #16a34a; background: rgba(22, 163, 74, 0.15); }
+      .opp-seat:not(.seat-human) .mobile-pos.position-guard { color: #2f80ed; background: rgba(47, 128, 237, 0.15); }
+      .opp-seat:not(.seat-human) .mobile-pos.position-forward { color: #e11d48; background: rgba(225, 29, 72, 0.15); }
+      .opp-seat:not(.seat-human) .mobile-dist {
+        font-size: 10px;
+        line-height: 1.2;
+        font-weight: 800;
+        padding: 1px 5px;
+        border-radius: 6px;
+        background: rgba(243, 156, 18, 0.18);
+        color: #f39c12;
+        cursor: pointer;
+        white-space: nowrap;
+      }
+      .opp-seat:not(.seat-human) .mobile-dist.out-of-range { background: rgba(239, 68, 68, 0.2); color: #ef4444; }
+      .opp-seat:not(.seat-human) .mobile-dist.self { background: rgba(255, 215, 0, 0.2); color: #ffd700; }
+
+      .opp-seat:not(.seat-human) .player-avatar { width: 28px !important; height: 28px !important; font-size: 12px !important; border-width: 1.5px !important; }
+      .opp-seat:not(.seat-human) .position-tag { display: none !important; } /* 桌面下的 tag mobile 隐藏，meta 行用 mobile-pos */
+
+      .opp-seat:not(.seat-human) .hp-display {
+        grid-area: hp;
+        font-size: 11px !important;
+        margin: 0 !important;
+        gap: 1px !important;
+        line-height: 1.1 !important;
+        align-self: end;
+        justify-self: center;
+      }
+      .opp-seat:not(.seat-human) .hp-number { font-size: 13px !important; }
+
+      /* 手牌：右下，底跟 hp 底对齐 */
+      .opp-seat:not(.seat-human) .hand-section {
+        grid-area: hand;
+        position: static !important;
+        bottom: auto !important; left: auto !important; right: auto !important;
+        height: auto !important;
+        width: auto !important;
+        align-self: end;
+        justify-self: stretch;
+        padding: 0 !important;
+      }
+      .opp-seat:not(.seat-human) .hand-cards {
+        display: flex !important;
+        align-items: flex-end;
+        flex-wrap: nowrap;
+      }
+      .opp-seat:not(.seat-human) .hand-stacked { padding-left: 12px; }
+      .opp-seat:not(.seat-human) .hand-back {
+        width: 16px !important;
+        height: 22px !important;
+        margin-left: -10px !important;
+        border-width: 1.5px !important;
+      }
+      .opp-seat:not(.seat-human) .hand-back::after { font-size: 9px !important; }
+      .opp-seat:not(.seat-human) .hand-back.hand-back-count::after { font-size: 10px !important; }
+
+      /* 装备 / 战术牌 / 状态图标统一在底部一行平铺 */
+      .opp-seat:not(.seat-human) .equipment-bar {
+        grid-area: equip;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 2px !important;
+        line-height: 1 !important;
+        margin-top: 2px;
+        padding-top: 2px;
+        border-top: 1px dotted rgba(255, 255, 255, 0.08);
+        min-height: 12px;
+      }
+      .opp-seat:not(.seat-human) .equip-tag {
         font-size: 8px !important;
         padding: 1px 3px !important;
         max-width: 100%;
@@ -2251,33 +2352,25 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-
-      /* 状态图标（判定区）：右上小圆点 */
-      .opp-seat .status-area {
-        position: absolute !important;
-        top: 18px !important;
-        right: 4px !important;
-        flex-direction: column !important;
-        gap: 1px !important;
+      .opp-seat:not(.seat-human) .status-area {
+        position: static !important;
+        grid-area: equip;
+        flex-direction: row !important;
+        gap: 2px !important;
+        margin-left: auto;
+        align-self: center;
+        top: auto !important;
+        right: auto !important;
+        pointer-events: auto;
       }
-      .opp-seat .status-icon { font-size: 11px !important; }
+      .opp-seat:not(.seat-human) .status-icon { font-size: 11px !important; }
 
-      /* opp 手牌堆按比例固定底部 */
-      .opp-seat .hand-section {
-        bottom: 4% !important;
-        height: 24% !important;
-        left: 2% !important;
-        right: 2% !important;
-      }
-      .opp-seat .hand-stacked { padding-left: 12px; }
-      .opp-seat .hand-back { width: 16px !important; height: 22px !important; margin-left: -10px !important; border-width: 1.5px !important; }
-      .opp-seat .hand-back::after { font-size: 9px !important; }
-      .opp-seat .hand-back.hand-back-count::after { font-size: 10px !important; }
+      .opp-seat:not(.seat-human) .identity-tag { font-size: 8px !important; padding: 0 4px !important; line-height: 1.4 !important; }
+      .opp-seat:not(.seat-human) .player-skill { display: none !important; }
 
-      /* human 自己卡：稍大一些字体 */
-      .opp-seat.seat-human .player-name {
-        font-size: 13px !important;
-      }
+      /* —— 自己卡（seat-human）保持原现状（含名字浮上方），仅做名字字号微调 —— */
+      .opp-seat.seat-human .mobile-meta-row { display: none !important; }
+      .opp-seat.seat-human .player-name { font-size: 13px !important; }
       .opp-seat.seat-human .player-avatar { width: 34px !important; height: 34px !important; font-size: 14px !important; }
       .opp-seat.seat-human .hp-display { font-size: 12px !important; }
       .opp-seat.seat-human .hp-number { font-size: 15px !important; }
@@ -2340,11 +2433,11 @@
         border-top: 2px solid var(--border);
       }
       .bottom-panel:not(.expanded) {
-        max-height: 96px;
+        max-height: 138px;
       }
       .bottom-panel:not(.expanded) .log-content {
-        max-height: 48px !important;
-        overflow: hidden;
+        max-height: 90px !important;
+        overflow-y: auto;
       }
       .bottom-panel.expanded {
         max-height: 50dvh !important;
