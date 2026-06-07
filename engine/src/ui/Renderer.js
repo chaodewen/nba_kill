@@ -267,6 +267,8 @@ export class Renderer {
       </div>` : '';
 
     const displayName = player.character.cnName || player.character.name;
+    const isCore = identity.key === 'core';
+    const corePrefix = isCore ? '<span class="core-mark" title="主力（队伍核心）">👑</span>' : '';
     card.innerHTML = `
       <span class="distance-tag" id="dist-${player.index}"></span>
       <div class="status-area" id="status-${player.index}">${statusHtml}</div>
@@ -275,7 +277,7 @@ export class Renderer {
         ${avatarHtml}
         <div class="player-info">
           <div class="player-name-row">
-            <span class="player-name" onclick="event.stopPropagation(); game.showSkillModal('${player.character.key}')" style="cursor:pointer">${displayName}</span>
+            ${corePrefix}<span class="player-name" onclick="event.stopPropagation(); game.showSkillModal('${player.character.key}')" style="cursor:pointer">${displayName}</span>
             <span class="identity-tag identity-${identity.key}" title="身份目标：${identity.goal}">${identity.name}</span>
           </div>
           <div class="player-skill" title="点击查看技能详情" onclick="event.stopPropagation(); game.showSkillModal('${player.character.key}')">【${player.character.skill}】</div>
@@ -972,22 +974,26 @@ export class Renderer {
       if (!tag && !tagMob) return;
       const apply = (el, isMobile) => {
         if (!el) return;
+        const cls = isMobile ? 'mobile-dist' : 'distance-tag';
         if (p === currentPlayer) {
-          el.textContent = isMobile ? '我' : '';
-          el.className = `${isMobile ? 'mobile-dist' : 'distance-tag'} self`;
+          el.textContent = '';
+          el.className = `${cls} self`;
           el.title = '';
+          el.style.display = 'none';
           return;
         }
+        el.style.display = '';
         if (!p.isAlive) {
-          el.textContent = '阵亡';
-          el.className = `${isMobile ? 'mobile-dist' : 'distance-tag'} out-of-range`;
+          el.textContent = '✗';
+          el.className = `${cls} out-of-range`;
+          el.title = '已阵亡';
           return;
         }
         const dist = calculateDistance(currentPlayer, p, players);
         const range = currentPlayer.getAttackRange?.() || 1;
         const inRange = dist <= range;
-        el.textContent = isMobile ? `距${dist}` : `${dist}`;
-        el.className = `${isMobile ? 'mobile-dist' : 'distance-tag'} ${inRange ? '' : 'out-of-range'}`;
+        el.textContent = `${dist}`;
+        el.className = `${cls} ${inRange ? '' : 'out-of-range'}`;
         el.title = `距离 ${dist}\n${currentPlayer.character?.name || '当前角色'} 攻击范围 ${range}\n相邻座位距离 1，越远数字越大；不在攻击范围则需要装备武器或技能拉远射程`;
       };
       apply(tag, false);

@@ -679,6 +679,14 @@
       display: inline-block;
     }
 
+    /* 主力（核心）标记：跟身份 tag 同样的可见规则 */
+    .core-mark { display: none; font-size: 12px; line-height: 1; margin-right: 2px; filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.8)); }
+    .player-card.human-player .core-mark,
+    .player-card.dead .core-mark,
+    body.debug-identity .core-mark {
+      display: inline-block;
+    }
+
     .identity-core {
       background: linear-gradient(90deg, #fbbf24, #f59e0b);
       color: #1a1a2e;
@@ -2203,23 +2211,28 @@
       /* —— 玩家卡内部内聚布局：iPhone 16 ≈ 100x115px 卡内信息分层 —— */
       .player-card { padding: 3px 4px 2px !important; gap: 1px !important; min-height: 0 !important; overflow: visible !important; }
 
-      /* 名字 / 身份 tag 浮在卡片上方（节省卡内空间） */
+      /* 名字 / 身份 tag 浮在卡片上方 — 左上角，完全在框外不重叠 */
       .opp-seat .player-name-row {
         position: absolute !important;
-        top: -14px !important;
-        left: 50% !important;
-        transform: translateX(-50%) !important;
-        background: rgba(0, 0, 0, 0.78) !important;
-        border: 1px solid rgba(255, 255, 255, 0.12) !important;
+        top: -22px !important;
+        left: 4px !important;
+        transform: none !important;
+        background: rgba(0, 0, 0, 0.85) !important;
+        border: 1px solid rgba(255, 255, 255, 0.18) !important;
         border-radius: 8px !important;
-        padding: 1px 8px !important;
-        z-index: 6 !important;
+        padding: 2px 8px !important;
+        z-index: 8 !important;
         white-space: nowrap !important;
         gap: 4px !important;
         display: flex !important;
         align-items: center !important;
         flex-wrap: nowrap !important;
+        max-width: calc(100% - 8px) !important;
+        line-height: 1.2 !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.4) !important;
       }
+      /* 把座位上方留出 22px 给名字胶囊 */
+      .opp-seat { padding-top: 22px !important; }
       .opp-seat .player-name {
         color: #fff !important;
         font-size: 11px !important;
@@ -2255,7 +2268,7 @@
       .opp-seat:not(.seat-human) .player-info { display: none !important; }
 
       /* 桌面 distance-tag 在 mobile 隐藏（用 mobile-meta-row 中的 mobile-dist 替代） */
-      .opp-seat:not(.seat-human) > .distance-tag { display: none !important; }
+      .opp-seat:not(.seat-human) .distance-tag { display: none !important; }
 
       .opp-seat:not(.seat-human) .mobile-meta-row {
         grid-area: meta;

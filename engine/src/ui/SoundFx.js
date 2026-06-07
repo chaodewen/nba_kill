@@ -29,6 +29,7 @@ export class SoundFx {
     this._unlocked = false;
     this.synth = (typeof window !== 'undefined') ? window.speechSynthesis : null;
     this.zhVoice = null;
+    this.enVoice = null;
     this._loadVoices();
   }
 
@@ -36,11 +37,18 @@ export class SoundFx {
     if (!this.synth) return;
     const pick = () => {
       const voices = this.synth.getVoices();
-      // 优先级：Tingting（macOS）→ Yating → 任何 zh-CN → 任何 zh
+      // 中文：优先 Tingting（macOS）→ Yating → 任何 zh-CN → 任何 zh
       this.zhVoice = voices.find(v => /tingting/i.test(v.name))
         || voices.find(v => /yating/i.test(v.name))
         || voices.find(v => v.lang === 'zh-CN')
         || voices.find(v => /^zh/i.test(v.lang))
+        || null;
+      // 英文：优先美音 Samantha / Alex（macOS）→ Google US → 任何 en-US → 任何 en
+      this.enVoice = voices.find(v => /samantha/i.test(v.name) && /^en/i.test(v.lang))
+        || voices.find(v => /alex/i.test(v.name) && /^en/i.test(v.lang))
+        || voices.find(v => /google.*us english/i.test(v.name))
+        || voices.find(v => v.lang === 'en-US')
+        || voices.find(v => /^en/i.test(v.lang))
         || null;
     };
     pick();
@@ -92,23 +100,25 @@ export class SoundFx {
   // 气势配置：rate 1.25 / pitch 1.2 / volume 1.0
   // 队列管理：不再 cancel 上一句，避免 AOE / 连锁动作把前面的语音打断；
   // 但若 pending 队列过长（>3 条）则丢掉最旧一条防止严重滞后
-  speak(text) {
+  // lang: 'zh' (默认 中文) | 'en' (英文 — 用于 NBA 球员名朗读)
+  speak(text, lang = 'zh') {
     if (!this.enabled || !this.synth || !text) return;
     try {
-      // pending: 当前正在 speak 的不算，仅看排队中的
-      const pendingTooMany = this.synth.pending && this.synth.pending === true;
-      if (pendingTooMany) {
-        // 部分浏览器 pending 是 boolean；保险起见，超过 3 条估计积压时清掉
-        // 实测主要靠不 cancel 即可，下面只做兜底
-      }
       const u = new SpeechSynthesisUtterance(String(text));
-      u.lang = 'zh-CN';
-      u.rate = 1.25;
-      u.pitch = 1.2;
+      const isEn = lang === 'en';
+      u.lang = isEn ? 'en-US' : 'zh-CN';
+      u.rate = isEn ? 1.05 : 1.25;
+      u.pitch = isEn ? 1.0 : 1.2;
       u.volume = 1.0;
-      if (this.zhVoice) u.voice = this.zhVoice;
+      const v = isEn ? this.enVoice : this.zhVoice;
+      if (v) u.voice = v;
       this.synth.speak(u);
     } catch (e) {}
+  }
+
+  // 朗读 NBA 球员名（自动用英文 voice）
+  speakName(name) {
+    this.speak(name, 'en');
   }
 
   // 关键事件音色（合成短音）+ 报名喊出

@@ -4,7 +4,7 @@
 // `nbaId` 是 NBA 官方球员 ID，用于生成真实球员头像（NBA CDN）
 export const CHARACTERS = [
   {
-    key: 'lebron_james', name: 'LeBron James', cnName: '詹姆斯', kingdom: 'wei', position: 'forward', hp: 4, nbaId: '2544',
+    key: 'lebron_james', name: 'LeBron James', cnName: '詹姆斯', voiceName: 'LeBron', kingdom: 'wei', position: 'forward', hp: 4, nbaId: '2544',
     skill: '全能 / 组织',
     archetype: '全能核心',
     description: '全能核心。可转化基础牌，并在进攻得手后支援队友。',
@@ -15,7 +15,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'kobe_bryant', name: 'Kobe Bryant', cnName: '科比', kingdom: 'shu', position: 'guard', hp: 4, nbaId: '977',
+    key: 'kobe_bryant', name: 'Kobe Bryant', cnName: '科比', voiceName: 'Kobe', kingdom: 'shu', position: 'guard', hp: 4, nbaId: '977',
     skill: '曼巴 / 绝杀',
     archetype: '终结型单打手',
     description: '终结型单打手。首攻受阻后继续压迫，残血时无视距离。',
@@ -26,7 +26,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'stephen_curry', name: 'Stephen Curry', cnName: '库里', kingdom: 'shu', position: 'guard', hp: 3, nbaId: '201939',
+    key: 'stephen_curry', name: 'Stephen Curry', cnName: '库里', voiceName: 'Curry', kingdom: 'shu', position: 'guard', hp: 3, nbaId: '201939',
     skill: '射程 / 三分雨',
     archetype: '三分爆发',
     description: '三分爆发。攻击距离更远，可发动群体外线进攻。',
@@ -37,7 +37,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'shaquille_oneal', name: "Shaquille O'Neal", cnName: '奥尼尔', kingdom: 'wu', position: 'inside', hp: 5, nbaId: '406',
+    key: 'shaquille_oneal', name: "Shaquille O'Neal", cnName: '奥尼尔', voiceName: 'Shaq', kingdom: 'wu', position: 'inside', hp: 5, nbaId: '406',
     skill: '禁区 / 罚球',
     archetype: '内线巨兽',
     description: '内线巨兽。近距离进攻伤害更高，但会给目标反制窗口。',
@@ -48,7 +48,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'tim_duncan', name: 'Tim Duncan', cnName: '邓肯', kingdom: 'wei', position: 'inside', hp: 4, nbaId: '1495',
+    key: 'tim_duncan', name: 'Tim Duncan', cnName: '邓肯', voiceName: 'Duncan', kingdom: 'wei', position: 'inside', hp: 4, nbaId: '1495',
     skill: '基本功 / 护框',
     archetype: '稳定基石',
     description: '稳定基石。受伤后补牌，可替队友护框。',
@@ -59,7 +59,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'kevin_durant', name: 'Kevin Durant', cnName: '杜兰特', kingdom: 'shu', position: 'forward', hp: 3, nbaId: '201142',
+    key: 'kevin_durant', name: 'Kevin Durant', cnName: '杜兰特', voiceName: 'Durant', kingdom: 'shu', position: 'forward', hp: 3, nbaId: '201142',
     skill: '错位 / 干拔',
     archetype: '无差别单打',
     description: '无差别单打。错位时压制响应，可打出无距离限制进攻。',
@@ -70,7 +70,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'dwyane_wade', name: 'Dwyane Wade', cnName: '韦德', kingdom: 'shu', position: 'guard', hp: 4, nbaId: '2548',
+    key: 'dwyane_wade', name: 'Dwyane Wade', cnName: '韦德', voiceName: 'Wade', kingdom: 'shu', position: 'guard', hp: 4, nbaId: '2548',
     skill: '突破 / 造犯',
     archetype: '突破造杀伤',
     description: '突破造杀伤。进攻得手后拆牌，被攻击时可判定摸牌。',
@@ -81,7 +81,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'chris_paul', name: 'Chris Paul', cnName: '保罗', kingdom: 'wei', position: 'guard', hp: 3, nbaId: '101108',
+    key: 'chris_paul', name: 'Chris Paul', cnName: '保罗', voiceName: 'CP3', kingdom: 'wei', position: 'guard', hp: 3, nbaId: '101108',
     skill: '控场 / 抢断',
     archetype: '控场组织',
     description: '控场组织。通过传牌和摸牌调度资源，并干扰对手节奏。',
@@ -92,7 +92,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'james_harden', name: 'James Harden', cnName: '哈登', kingdom: 'shu', position: 'guard', hp: 3, nbaId: '201935',
+    key: 'james_harden', name: 'James Harden', cnName: '哈登', voiceName: 'Harden', kingdom: 'shu', position: 'guard', hp: 3, nbaId: '201935',
     skill: '造犯 / 后撤步',
     archetype: '造犯规与爆发',
     description: '进攻被盖后让对方在「弃牌」与「让你摸牌」中选一项；后撤步则在你出投前用一张牌换距离自由。',
@@ -103,7 +103,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'kawhi_leonard', name: 'Kawhi Leonard', cnName: '卡哇伊', kingdom: 'wu', position: 'forward', hp: 4, nbaId: '202695',
+    key: 'kawhi_leonard', name: 'Kawhi Leonard', cnName: '卡哇伊', voiceName: 'Kawhi', kingdom: 'wu', position: 'forward', hp: 4, nbaId: '202695',
     skill: '死亡缠绕 / 沉默',
     archetype: '攻防一体',
     description: '攻防一体。伤害后拆牌，并可取消针对自己的战术效果。',
@@ -114,7 +114,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'kevin_garnett', name: 'Kevin Garnett', cnName: '加内特', kingdom: 'wu', position: 'inside', hp: 4, nbaId: '708',
+    key: 'kevin_garnett', name: 'Kevin Garnett', cnName: '加内特', voiceName: 'KG', kingdom: 'wu', position: 'inside', hp: 4, nbaId: '708',
     skill: '怒吼 / 协防',
     archetype: '激情防守',
     description: '激情防守。用盖后反压攻击者，也可协防降低伤害。',
@@ -125,7 +125,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'dwight_howard', name: 'Dwight Howard', cnName: '霍华德', kingdom: 'wu', position: 'inside', hp: 4, nbaId: '2730',
+    key: 'dwight_howard', name: 'Dwight Howard', cnName: '霍华德', voiceName: 'Howard', kingdom: 'wu', position: 'inside', hp: 4, nbaId: '2730',
     skill: '篮板 / 盖帽',
     archetype: '篮板护筐',
     description: '篮板护筐。回收弃置的基本牌，打出盖后摸牌。',
@@ -136,7 +136,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'ray_allen', name: 'Ray Allen', cnName: '雷阿伦', kingdom: 'qun', position: 'guard', hp: 3, nbaId: '951',
+    key: 'ray_allen', name: 'Ray Allen', cnName: '雷阿伦', voiceName: 'Ray Allen', kingdom: 'qun', position: 'guard', hp: 3, nbaId: '951',
     skill: '底角 / 绝平',
     archetype: '定点射手',
     description: '定点射手。首投难以远端响应，濒死被救后可反击。',
@@ -147,7 +147,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'shane_battier', name: 'Shane Battier', cnName: '巴蒂尔', kingdom: 'qun', position: 'forward', hp: 3, nbaId: '2426',
+    key: 'shane_battier', name: 'Shane Battier', cnName: '巴蒂尔', voiceName: 'Battier', kingdom: 'qun', position: 'forward', hp: 3, nbaId: '2426',
     photoUrl: 'https://a.espncdn.com/combiner/i?img=/i/headshots/nba/players/full/976.png&w=270&h=200',
     photoTransform: 'scaleX(1.18)',
     skill: '站位 / 底角三分',
@@ -160,7 +160,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'manu_ginobili', name: 'Manu Ginobili', cnName: '吉诺', kingdom: 'qun', position: 'guard', hp: 3, nbaId: '1938',
+    key: 'manu_ginobili', name: 'Manu Ginobili', cnName: '吉诺', voiceName: 'Manu', kingdom: 'qun', position: 'guard', hp: 3, nbaId: '1938',
     skill: '妖刀 / 奇袭',
     archetype: '第六人妖刀',
     description: '第六人妖刀。爆发换牌，并在战术牌指定目标后施压。',
@@ -171,7 +171,7 @@ export const CHARACTERS = [
     ]
   },
   {
-    key: 'andre_iguodala', name: 'Andre Iguodala', cnName: '伊戈', kingdom: 'qun', position: 'forward', hp: 4, nbaId: '2738',
+    key: 'andre_iguodala', name: 'Andre Iguodala', cnName: '伊戈', voiceName: 'Iggy', kingdom: 'qun', position: 'forward', hp: 4, nbaId: '2738',
     skill: 'FMVP / 协防',
     archetype: '关键防守者',
     description: '关键防守者。面对强者进攻时过滤手牌，也能替队友响应盖。',

@@ -289,8 +289,12 @@ export class Game {
     
     this.renderer.highlightPlayer(player);
     this.renderer.updateUI(this);
-    
+
     this.renderer.addLog(`═══ 第 ${this.turnCount} 回合 - ${player.character.name} ═══`, 'turn');
+    // 回合开始：英文 voice 念出 NBA 球员名（"LeBron" / "Kobe" / "Curry" ...）
+    const voiceName = player.character.voiceName || player.character.name;
+    this.fx?.play?.('card_play', { silent: true });
+    this.fx?.speakName?.(voiceName);
     
     // 准备阶段
     this.preparePhase(player);
