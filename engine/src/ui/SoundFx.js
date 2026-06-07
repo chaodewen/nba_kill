@@ -20,6 +20,7 @@ const COMMENTARY = {
   lebusishu: ['犯规麻烦！多打少了！'],
   bingliangcunduan: ['体能危机！跑不起来了！'],
   shandian: ['伤病隐患！随时可能炸雷！'],
+  equip: ['装备上了！', '换装备！'],
   end_turn: ['回合结束！换人！', '这一波打完！'],
   discard: ['弃牌！', '清理手牌！'],
   hit: ['进了！得手！'],
@@ -182,8 +183,8 @@ export class SoundFx {
   }
 
   // 喊牌名 / 解说语：杨毅风格 — 偏成熟男声节奏
-  // 优先级：(1) 命中 mp3 manifest → 用预生成的 Yunjian 男声播 mp3；
-  //        (2) 没命中 → SpeechSynthesis 极限调音（pitch 0.5）模拟低沉男声
+  // 优先级：(1) 命中 mp3 manifest → 播预生成男声 mp3；
+  //        (2) manifest 未加载时才 fallback SpeechSynthesis，避免新旧声线混播
   // lang: 'zh' (默认 中文) | 'en' (英文 — NBA 球员名朗读)
   speak(text, lang = 'zh') {
     if (!this.enabled || !text) return;
@@ -200,10 +201,13 @@ export class SoundFx {
     }
     if (lang === 'zh' && this.mp3Manifest && this._missLogged && !this._missLogged.has(key)) {
       this._missLogged.add(key);
-      console.debug(`[SoundFx] mp3 未命中: "${key}" → fallback SpeechSynthesis`);
+      console.debug(`[SoundFx] mp3 未命中: "${key}" → skip SpeechSynthesis`);
+    }
+    if (lang === 'zh' && this.mp3Manifest) {
+      return;
     }
 
-    // (2) Fallback: SpeechSynthesis
+    // (2) Fallback: SpeechSynthesis（仅 manifest 未加载 / 英文球员名）
     this._speakSS(key, lang);
   }
 

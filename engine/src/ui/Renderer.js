@@ -12,6 +12,10 @@ const CARD_TTS_KEY = {
   '官方暂停': 'taoyuan', '战术板': 'wuzhong', '战术中断': 'wuxie', '手感来了': 'wugu',
   '抢断': 'shunshou', '迫使失误': 'guoheshuang', '借刀杀人': 'jiedaosharen',
   '犯规麻烦': 'lebusishu', '体能危机': 'bingliangcunduan', '伤病隐患': 'shandian',
+  '投篮训练机': 'equip', '罚球线': 'equip', '挡拆战术板': 'equip',
+  '运动护腕': 'equip', '半场标志线': 'equip', '比赛用球': 'equip',
+  '运动眼镜': 'equip', '护齿': 'equip',
+  'Air Jordan 11': 'equip', 'LeBron 8': 'equip', 'Kobe 6': 'equip', 'Kyrie 1': 'equip',
 };
 
 export class Renderer {
