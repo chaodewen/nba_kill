@@ -2057,19 +2057,23 @@
         transform: translate(-50%, -50%) !important;
         left: auto;
         top: auto;
-        width: 19% !important;
-        max-width: 100px !important;
         height: 22% !important;
         max-height: 138px !important;
         flex-shrink: 0;
         z-index: 2;
       }
-      /* 自己卡：左侧、稍大、橙色高亮 */
+      /* 按 N 调整 opp 宽度，让 top/bot 行充分铺开但不重叠（与 Renderer x 公式 (col+.5)/total 配套） */
+      .opponents-area.mobile-portrait.players-4 .opp-seat.mobile-seat:not(.seat-human) { width: 38% !important; max-width: 150px !important; }
+      .opponents-area.mobile-portrait.players-5 .opp-seat.mobile-seat:not(.seat-human) { width: 36% !important; max-width: 140px !important; }
+      .opponents-area.mobile-portrait.players-6 .opp-seat.mobile-seat:not(.seat-human) { width: 30% !important; max-width: 130px !important; }
+      .opponents-area.mobile-portrait.players-7 .opp-seat.mobile-seat:not(.seat-human) { width: 28% !important; max-width: 125px !important; }
+      .opponents-area.mobile-portrait.players-8 .opp-seat.mobile-seat:not(.seat-human) { width: 23% !important; max-width: 110px !important; }
+      /* 自己卡：左侧、显著大一圈、橙色高亮 */
       .opp-seat.mobile-seat.seat-human {
-        width: 25% !important;
-        max-width: 130px !important;
-        height: 25% !important;
-        max-height: 160px !important;
+        width: 30% !important;
+        max-width: 150px !important;
+        height: 28% !important;
+        max-height: 178px !important;
         z-index: 5;
       }
       .opp-seat.mobile-seat.seat-human .player-card {

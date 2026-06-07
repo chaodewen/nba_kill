@@ -205,17 +205,13 @@ export class Renderer {
       const layout = Renderer.getMobileSeatLayout(N, player.index);
       let x, y;
       if (layout[0] === 'humanleft') {
-        x = 13;
+        x = 14;
         y = 50;
       } else {
         const [row, col, total] = layout;
-        // 8 人局 (top 4) 时 x 范围更宽：18%-98% 给玩家框充裕空间不挤
-        // 7 人 (top 3 / bot 3): 24-94%
-        // 其他 4-6 人：26-92%
-        let xMin = 26, xMax = 92;
-        if (N === 8 && total === 4) { xMin = 18; xMax = 98; }
-        else if (N === 7) { xMin = 24; xMax = 94; }
-        x = xMin + (col + 0.5) / total * (xMax - xMin);
+        // 充分利用横向：x 中心点按行内等分（cards 边到边但不重叠，CSS 里 width 配套）
+        // 留 2% 边距防贴边裁切
+        x = 2 + (col + 0.5) / total * 96;
         y = row === 'top' ? 18 : 82;
       }
       const wrap = document.createElement('div');
