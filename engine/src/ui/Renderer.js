@@ -209,10 +209,12 @@ export class Renderer {
         y = 50;
       } else {
         const [row, col, total] = layout;
-        // 8 人局 (top 4) 时 x 范围拉大：22%-96%（74% range / 4 = 18.5% per slot）
-        // 其他人数 26%-92% 不变
-        const xMin = (N === 8 && total === 4) ? 22 : 26;
-        const xMax = (N === 8 && total === 4) ? 96 : 92;
+        // 8 人局 (top 4) 时 x 范围更宽：18%-98% 给玩家框充裕空间不挤
+        // 7 人 (top 3 / bot 3): 24-94%
+        // 其他 4-6 人：26-92%
+        let xMin = 26, xMax = 92;
+        if (N === 8 && total === 4) { xMin = 18; xMax = 98; }
+        else if (N === 7) { xMin = 24; xMax = 94; }
         x = xMin + (col + 0.5) / total * (xMax - xMin);
         y = row === 'top' ? 18 : 82;
       }

@@ -2057,18 +2057,18 @@
         transform: translate(-50%, -50%) !important;
         left: auto;
         top: auto;
-        width: 22% !important;
-        max-width: 110px !important;
-        height: 23% !important;
-        max-height: 145px !important;
+        width: 19% !important;
+        max-width: 100px !important;
+        height: 22% !important;
+        max-height: 138px !important;
         flex-shrink: 0;
         z-index: 2;
       }
       /* 自己卡：左侧、稍大、橙色高亮 */
       .opp-seat.mobile-seat.seat-human {
-        width: 26% !important;
+        width: 25% !important;
         max-width: 130px !important;
-        height: 26% !important;
+        height: 25% !important;
         max-height: 160px !important;
         z-index: 5;
       }
@@ -2193,34 +2193,66 @@
 
       /* （旧的 flex 横滑 opp 区块已被上面 mobile-portrait + :not(.mobile-portrait) 兜底覆盖） */
 
-      /* —— 玩家卡内部紧凑内聚 —— */
-      .player-card { padding: 4px 6px !important; gap: 2px !important; min-height: 0 !important; }
-      .player-header { gap: 5px !important; margin-bottom: 2px !important; align-items: center !important; }
-      .opp-seat .player-card { padding-bottom: 0 !important; }
-      .player-avatar-wrap { gap: 2px !important; }
-      .player-avatar { width: 30px !important; height: 30px !important; font-size: 13px !important; border-width: 2px !important; }
-      .position-tag { font-size: 9px !important; padding: 1px 5px !important; letter-spacing: 0 !important; margin: 0 !important; }
-      .identity-tag { font-size: 9px !important; padding: 1px 5px !important; letter-spacing: 0 !important; }
-      .distance-tag { font-size: 10px !important; padding: 1px 5px !important; min-width: 16px !important; top: 2% !important; right: 2% !important; }
-      .player-name { font-size: 11px !important; }
-      .player-skill { font-size: 9px !important; line-height: 1.2 !important; }
-      .opp-seat .player-skill { display: none; }
-      .hp-display { font-size: 12px !important; margin-bottom: 0 !important; gap: 1px !important; }
-      .hp-number { font-size: 14px !important; }
-      .equipment-bar { gap: 2px !important; flex-wrap: wrap !important; }
-      .equip-tag { font-size: 9px !important; padding: 1px 4px !important; }
+      /* —— 玩家卡内部内聚布局：iPhone 16 ≈ 100x115px 卡内信息分层 —— */
+      .player-card { padding: 3px 4px 2px !important; gap: 1px !important; min-height: 0 !important; overflow: hidden !important; }
+      .opp-seat .player-card { padding: 3px 4px 2px !important; }
+
+      /* 顶部：头像（小）+ 名字 + HP 数字 */
+      .opp-seat .player-header { gap: 4px !important; margin-bottom: 1px !important; align-items: center !important; }
+      .opp-seat .player-avatar-wrap { gap: 0 !important; }
+      .opp-seat .player-avatar { width: 28px !important; height: 28px !important; font-size: 12px !important; border-width: 1.5px !important; }
+      .opp-seat .position-tag { font-size: 8px !important; padding: 0 3px !important; line-height: 1.4 !important; margin-top: 1px !important; }
+      .opp-seat .player-name { font-size: 11px !important; max-width: 60px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .opp-seat .player-name-row { gap: 3px !important; flex-wrap: nowrap !important; }
+      .opp-seat .identity-tag { font-size: 8px !important; padding: 0 4px !important; line-height: 1.4 !important; }
+      .opp-seat .distance-tag { font-size: 10px !important; padding: 1px 4px !important; min-width: 14px !important; top: 2px !important; right: 2px !important; line-height: 1.1; font-weight: 800; }
+      .opp-seat .player-skill { display: none !important; }
+
+      /* HP 行 */
+      .opp-seat .hp-display { font-size: 11px !important; margin-bottom: 0 !important; gap: 1px !important; line-height: 1.1 !important; }
+      .opp-seat .hp-number { font-size: 13px !important; }
+
+      /* 装备栏：图标化，文字省 */
+      .opp-seat .equipment-bar { gap: 2px !important; flex-wrap: wrap !important; line-height: 1 !important; }
+      .opp-seat .equip-tag {
+        font-size: 8px !important;
+        padding: 1px 3px !important;
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* 状态图标（判定区）：右上小圆点 */
+      .opp-seat .status-area {
+        position: absolute !important;
+        top: 18px !important;
+        right: 4px !important;
+        flex-direction: column !important;
+        gap: 1px !important;
+      }
+      .opp-seat .status-icon { font-size: 11px !important; }
 
       /* opp 手牌堆按比例固定底部 */
       .opp-seat .hand-section {
-        bottom: 6% !important;
-        height: 22% !important;
+        bottom: 4% !important;
+        height: 24% !important;
         left: 2% !important;
         right: 2% !important;
       }
       .opp-seat .hand-stacked { padding-left: 12px; }
-      .opp-seat .hand-back { width: 18px !important; height: 24px !important; margin-left: -10px !important; }
-      .opp-seat .hand-back::after { font-size: 10px !important; }
-      .opp-seat .hand-back.hand-back-count::after { font-size: 11px !important; }
+      .opp-seat .hand-back { width: 16px !important; height: 22px !important; margin-left: -10px !important; border-width: 1.5px !important; }
+      .opp-seat .hand-back::after { font-size: 9px !important; }
+      .opp-seat .hand-back.hand-back-count::after { font-size: 10px !important; }
+
+      /* human 自己卡：稍大一些字体 */
+      .opp-seat.seat-human .player-avatar { width: 34px !important; height: 34px !important; font-size: 14px !important; }
+      .opp-seat.seat-human .player-name { font-size: 12px !important; max-width: 80px; }
+      .opp-seat.seat-human .hp-display { font-size: 12px !important; }
+      .opp-seat.seat-human .hp-number { font-size: 15px !important; }
+      .opp-seat.seat-human .position-tag { font-size: 9px !important; }
+      .opp-seat.seat-human .identity-tag { font-size: 9px !important; }
+      .opp-seat.seat-human .player-skill { display: block !important; font-size: 9px !important; line-height: 1.2 !important; max-height: 22px; overflow: hidden; }
 
       /* —— 屏幕中央弃牌堆迷你化（钉到 game-area 顶部右侧空位，不再挡玩家框） —— */
       .center-discard-stack {
