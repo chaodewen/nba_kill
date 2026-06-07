@@ -65,9 +65,9 @@ export class Renderer {
       rulesModal: document.getElementById('rules-modal'),
       // 关于 / 信息
       infoModal: document.getElementById('info-modal'),
-      // 球员图鉴
-      rosterModal: document.getElementById('roster-modal'),
-      rosterBody: document.getElementById('roster-body'),
+      // 球员图鉴独立页
+      rosterPage: document.getElementById('roster-page'),
+      rosterPageBody: document.getElementById('roster-page-body'),
       // 目标选择
       targetBanner: document.getElementById('target-banner'),
       targetBannerText: document.getElementById('target-banner-text'),
@@ -945,14 +945,14 @@ export class Renderer {
     if (this.elements.cardPickBody) this.elements.cardPickBody.innerHTML = '';
   }
 
-  // 球员图鉴：列出 CHARACTERS 全部 16 人，每张卡含头像 / 名字 / 位置 / HP / bio / 技能详情
-  showRosterModal() {
-    if (!this.elements.rosterModal || !this.elements.rosterBody) return;
+  // 球员图鉴独立页：列出 16 球员按位置分组（后卫 / 锋线 / 内线）
+  showRosterPage() {
+    if (!this.elements.rosterPage || !this.elements.rosterPageBody) return;
     const escape = (s) => String(s ?? '')
       .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
       .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
-    const html = CHARACTERS.map(ch => {
+    const cardHtml = (ch) => {
       const pos = POSITIONS[ch.position] || { name: '?', short: '?' };
       const avatarUrl = getCharacterAvatar(ch);
       const initial = (ch.cnName || ch.name || '?').charAt(0);
@@ -973,7 +973,6 @@ export class Renderer {
               <div class="roster-name">${escape(ch.cnName || ch.name)} <span class="roster-name-en">${escape(ch.name)}</span></div>
               <div class="roster-tag-row">
                 ${ch.nickname ? `<span class="roster-tag nick">「${escape(ch.nickname)}」</span>` : ''}
-                <span class="roster-tag pos-${escape(ch.position)}">${escape(pos.short || pos.name)}</span>
                 <span class="roster-tag hp-tag">❤ ${ch.hp}</span>
               </div>
             </div>
@@ -981,15 +980,34 @@ export class Renderer {
           ${ch.bio ? `<div class="roster-bio">${escape(ch.bio)}</div>` : ''}
           <div class="roster-skills">${skillsHtml}</div>
         </div>`;
+    };
+
+    // 按位置分组：后卫 / 锋线 / 内线
+    const groups = [
+      { key: 'guard', title: '后场操盘 · 后卫', icon: '🎯' },
+      { key: 'forward', title: '锋线尖刃 · 锋线', icon: '⚡' },
+      { key: 'inside', title: '禁区铁壁 · 内线', icon: '🛡️' },
+    ];
+    const html = groups.map(g => {
+      const list = CHARACTERS.filter(c => c.position === g.key);
+      if (!list.length) return '';
+      return `
+        <div class="roster-group">
+          <div class="roster-group-title pos-${g.key}">${g.icon} ${g.title}（${list.length} 人）</div>
+          <div class="roster-group-grid">${list.map(cardHtml).join('')}</div>
+        </div>`;
     }).join('');
 
-    this.elements.rosterBody.innerHTML = html;
-    this.elements.rosterModal.classList.add('show');
+    this.elements.rosterPageBody.innerHTML = html;
+    this.elements.rosterPage.classList.add('show');
+    document.querySelector('.app')?.classList.add('roster-mode');
+    // 滚回顶部，避免上次的滚动残留
+    this.elements.rosterPageBody.scrollTop = 0;
   }
 
-  hideRosterModal() {
-    if (!this.elements.rosterModal) return;
-    this.elements.rosterModal.classList.remove('show');
+  hideRosterPage() {
+    this.elements.rosterPage?.classList.remove('show');
+    document.querySelector('.app')?.classList.remove('roster-mode');
   }
 
   // 胜利弹窗 + 身份揭示
@@ -1104,8 +1122,8 @@ export class Renderer {
     }
     const { message, type } = this._logQueue.shift();
     this._renderLogEntry(message, type);
-    // 每条日志默认 2s 后弹下一条；积压超过 6 条自动缩到 1s；paceMultiplier 倍率支持设置面板调速
-    const baseGap = this._logQueue.length > 6 ? 1000 : 2000;
+    // 每条日志 1.5s 节奏（声音/动效也按这个节奏对齐）；积压 >6 时缩到 0.9s 防卡
+    const baseGap = this._logQueue.length > 6 ? 900 : 1500;
     const mult = this._paceMultiplier ?? 1;
     this._logTimer = setTimeout(() => this._processLogQueue(), Math.max(120, baseGap * mult));
   }

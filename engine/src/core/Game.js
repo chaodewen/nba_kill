@@ -649,27 +649,36 @@ export class Game {
   // 做球
   handleJiedao(player, card) {
     // 步骤1: 检查场上是否有装备武器的球员
-    const playersWithWeapon = this.players.filter(p => 
-      p !== player && 
-      p.isAlive && 
+    const playersWithWeapon = this.players.filter(p =>
+      p !== player &&
+      p.isAlive &&
       p.equipment?.weapon
     );
-    
+
     if (playersWithWeapon.length === 0) {
-      this.renderer.addLog(`❌ 无法使用【做球】：场上没有装备武器的球员`, 'normal');
-      // 归还卡牌
-      player.handCards.push(card);
-      this.renderer.updatePlayer(player);
-      this.renderer.updateUI(this);
+      // 无目标：human 归还（让玩家选别张），AI 直接弃置避免死循环（之前 AI 一直选做球但用不出来卡死）
+      if (player.isHuman) {
+        this.renderer.addLog(`❌ 无法使用【做球】：场上没有装备武器的球员，已归还`, 'normal');
+        player.handCards.push(card);
+        this.renderer.updatePlayer(player);
+        this.renderer.updateUI(this);
+      } else {
+        this.renderer.addLog(`❌ ${player.character.name} 尝试做球但场上没有装备武器的球员，弃置`, 'normal');
+        this.discardWithFlash(card, player);
+        this.renderer.updateUI(this);
+      }
       this.continueAfterCard(player, 400);
       return;
     }
-    
+
     // 步骤2: 随机选择一个装备武器的球员作为借刀目标
     const jiedaoTarget = playersWithWeapon[Math.floor(Math.random() * playersWithWeapon.length)];
-    
+
     this.renderer.addLog(`📜 ${player.character.name} 对 ${jiedaoTarget.character.name} 使用【做球】`, 'play');
     this.renderer.flashCardPlay(player, '做球', '#95a5a6');
+    // 做球：被锁定方动效（突出"被指定攻击"）
+    this.renderer.flashTargeted?.(jiedaoTarget);
+    this.fx?.speak?.('借刀杀人！调虎离山！');
     
     // 步骤3: 检查目标是否有可攻击的对象
     const shaTarget = this.findValidTarget(jiedaoTarget);
@@ -687,7 +696,10 @@ export class Game {
       const shaIndex = jiedaoTarget.handCards.findIndex(c => c.key === 'sha');
       const sha = jiedaoTarget.handCards.splice(shaIndex, 1)[0];
       this.renderer.addLog(`⚔️ ${jiedaoTarget.character.name} 对 ${shaTarget.character.name} 使用【投】`, 'play');
-      
+      // jiedaoTarget 被迫出投：飞牌 + 红光锁定 shaTarget
+      this.renderer.flashCardPlay(jiedaoTarget, '投', '#e74c3c');
+      this.renderer.flashTargeted?.(shaTarget);
+
       // 处理投的效果
       const decision = aiDecideShan(shaTarget, sha, jiedaoTarget);
       
@@ -2639,13 +2651,15 @@ export class Game {
   }
 
   showRosterModal() {
-    this.renderer.showRosterModal?.();
+    this.renderer.showRosterPage?.();
   }
 
   hideRosterModal(event) {
-    if (event && event.target && event.target !== this.renderer.elements.rosterModal) return;
-    this.renderer.hideRosterModal?.();
+    this.renderer.hideRosterPage?.();
   }
+
+  showRosterPage() { this.renderer.showRosterPage?.(); }
+  hideRosterPage() { this.renderer.hideRosterPage?.(); }
 
   showDistanceModal(playerIndex) {
     const tag = document.getElementById(`dist-mob-${playerIndex}`);
