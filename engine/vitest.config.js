@@ -1,0 +1,10 @@
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  test: {
+    environment: 'happy-dom',
+    globals: false,
+    include: ['test/**/*.test.js'],
+    testTimeout: 8000,
+  },
+});

@@ -558,11 +558,13 @@ export class Renderer {
     document.body.classList.remove('target-selecting');
   }
 
-  // HP 变化飘字
+  // HP 变化飘字 + 音效（受伤 hit beep / 回血 tao beep，不念文案）
   flashHpDelta(player, delta) {
     if (!player || !delta) return;
     const card = document.getElementById(`player-${player.index}`);
     if (!card) return;
+    // 自动音效：每次 HP 变化都有声音
+    this.game?.fx?.play?.(delta > 0 ? 'tao' : 'hit');
     const flash = document.createElement('div');
     flash.className = `hp-flash ${delta < 0 ? 'damage' : 'heal'}`;
     flash.textContent = delta < 0 ? `💥 ${delta}` : `❤️ +${delta}`;

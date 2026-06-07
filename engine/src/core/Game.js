@@ -308,6 +308,7 @@ export class Game {
       player.judgeCards = player.judgeCards.filter(j => j !== shandian);
       if (isStrike) {
         player.takeDamage(3);
+        this.renderer.flashHpDelta?.(player, -3);
         this.renderer.addLog(`💥 ${player.character.name} 受到 3 点伤病伤害`, 'play');
         this.deck.discard(shandian);
         this.renderer.updatePlayer(player);
@@ -596,6 +597,7 @@ export class Game {
         this.renderer.addLog(`使用【${card.name}】`, 'play');
         if (target && target.isAlive) {
           target.takeDamage(1);
+          this.renderer.flashHpDelta?.(target, -1);
           this.renderer.updatePlayer(target);
           this.checkDeath(target, player);
         }
@@ -657,6 +659,7 @@ export class Game {
           this.renderer.addLog(`✨ ${shaTarget.character.name} 联防体系生效，盖避成功`, 'skill');
         } else {
           shaTarget.takeDamage(1);
+          this.renderer.flashHpDelta?.(shaTarget, -1);
           this.renderer.addLog(`💥 ${shaTarget.character.name} 受到 1 点伤害`, 'play');
           this.checkDeath(shaTarget, jiedaoTarget);
         }
@@ -670,6 +673,7 @@ export class Game {
         }
       } else {
         shaTarget.takeDamage(1);
+        this.renderer.flashHpDelta?.(shaTarget, -1);
         this.renderer.addLog(`💥 ${shaTarget.character.name} 受到 1 点伤害，剩余 ${shaTarget.hp} 点体能`, 'play');
         this.checkDeath(shaTarget, jiedaoTarget);
       }
@@ -711,6 +715,7 @@ export class Game {
           this.renderer.addLog(`✨ ${shaTarget.character.name} 联防体系生效，盖避成功`, 'skill');
         } else {
           shaTarget.takeDamage(1);
+          this.renderer.flashHpDelta?.(shaTarget, -1);
           this.renderer.addLog(`💥 ${shaTarget.character.name} 受到 1 点伤害`, 'play');
           this.checkDeath(shaTarget, jiedaoTarget);
         }
@@ -724,6 +729,7 @@ export class Game {
         }
       } else {
         shaTarget.takeDamage(1);
+        this.renderer.flashHpDelta?.(shaTarget, -1);
         this.renderer.addLog(`💥 ${shaTarget.character.name} 受到 1 点伤害，剩余 ${shaTarget.hp} 点体能`, 'play');
         this.checkDeath(shaTarget, jiedaoTarget);
       }
@@ -752,6 +758,7 @@ export class Game {
     this.players.forEach(p => {
       if (p.isAlive && p.hp < p.maxHp) {
         p.heal(1);
+        this.renderer.flashHpDelta?.(p, 1);
         this.renderer.addLog(`${p.character.name} 回复 1 点体能`, 'heal');
         this.renderer.updatePlayer(p);
       }
@@ -1076,11 +1083,13 @@ export class Game {
         this.renderer.addLog('决斗平局', 'normal');
       } else if (playerCanWin || !targetCanWin) {
         target.takeDamage(1);
+        this.renderer.flashHpDelta?.(target, -1);
         this.renderer.updatePlayer(target);
         this.renderer.addLog(`${target.character.name} 无法出【投】，受到 1 点伤害`, 'play');
         this.checkDeath(target, player);
       } else {
         player.takeDamage(1);
+        this.renderer.flashHpDelta?.(player, -1);
         this.renderer.updatePlayer(player);
         this.renderer.addLog(`${player.character.name} 无法出【投】，受到 1 点伤害`, 'play');
         this.checkDeath(player, target);
@@ -1898,6 +1907,8 @@ export class Game {
     const discardCount = player.handCards.length - maxCards;
 
     if (discardCount > 0) {
+      // 一次性语音报弃牌总数（不一张一张报）
+      this.fx?.speak?.(`弃牌${discardCount}张`);
       // 人类玩家：弹出交互式弃牌窗口，自己挑要弃哪几张
       if (player.isHuman) {
         this.renderer.addLog(`需要弃置 ${discardCount} 张手牌（手牌上限 ${maxCards}）`, 'system');

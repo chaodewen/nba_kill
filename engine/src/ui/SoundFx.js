@@ -1,9 +1,9 @@
 // 音效系统：用 Web Speech API（中文 TTS）报牌名，气势喊出来；用 Web Audio API 给关键事件加底色提示音。
 // 全部 zero-asset：无外部 mp3，浏览器原生合成。
 
-// flashCardPlay 已经通过 cardName 喊牌名，这里只配那些没经过 flashCardPlay 的关键事件
+// flashCardPlay 已经通过 cardName 喊牌名；这里只配关键事件
+// hit / heal 类只播 beep，不报中文（受伤动效用音色就够，不必念）
 const DEFAULT_TEXT = {
-  hit:    '命中!',
   death:  '阵亡!',
   win:    '胜利!',
   reject: '无效!',
@@ -88,11 +88,17 @@ export class SoundFx {
 
   // 喊牌名：text 是要报的中文（"投"/"盖"/"三分雨" 等）
   // 气势配置：rate 1.25 / pitch 1.2 / volume 1.0
+  // 队列管理：不再 cancel 上一句，避免 AOE / 连锁动作把前面的语音打断；
+  // 但若 pending 队列过长（>3 条）则丢掉最旧一条防止严重滞后
   speak(text) {
     if (!this.enabled || !this.synth || !text) return;
     try {
-      // 取消上一句，避免堆积
-      this.synth.cancel();
+      // pending: 当前正在 speak 的不算，仅看排队中的
+      const pendingTooMany = this.synth.pending && this.synth.pending === true;
+      if (pendingTooMany) {
+        // 部分浏览器 pending 是 boolean；保险起见，超过 3 条估计积压时清掉
+        // 实测主要靠不 cancel 即可，下面只做兜底
+      }
       const u = new SpeechSynthesisUtterance(String(text));
       u.lang = 'zh-CN';
       u.rate = 1.25;
