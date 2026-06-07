@@ -84,9 +84,23 @@ export class Renderer {
     const opponents = players.filter(p => !p.isHuman);
     const oppCount = opponents.length;
 
-    // 上方对手区：所有对手沿顶部弧形排开
-    // 排序：seat 编号大的在最左（人类的"逆时针"邻居），seat 1 在最右（人类的"顺时针"邻居）
-    // 这样视觉相邻 = 引擎距离 1，跟距离匹配
+    // 手机竖屏：圆桌布局（top 数 / 中间自己 / bottom 数 — 按 4-8 人各自设计）
+    const isMobilePortrait = typeof window !== 'undefined'
+      && window.matchMedia
+      && window.matchMedia('(max-width: 768px) and (orientation: portrait)').matches;
+
+    if (isMobilePortrait) {
+      this.renderMobilePortrait(players, human, opponents);
+      // 人类的手牌 / 快捷按钮仍在底部 tray
+      if (human) {
+        this.renderHandCards(human);
+        const actions = this.elements.humanActions;
+        if (actions) actions.innerHTML = this.renderQuickActions(human);
+      }
+      return;
+    }
+
+    // —— 桌面 / 平板布局（弧形对手 + 左下角玩家） ——
     const oppArea = this.elements.opponentsArea;
     if (oppArea) {
       oppArea.innerHTML = '';
@@ -96,10 +110,8 @@ export class Renderer {
 
       sorted.forEach((p, i) => {
         const fraction = oppCount === 1 ? 0.5 : i / (oppCount - 1);
-        // 横向：边距随人数变化，确保卡片半宽不会被裁
         const margin = oppCount <= 3 ? 15 : oppCount === 4 ? 13 : oppCount === 5 ? 11 : oppCount === 6 ? 9 : 7.5;
         const x = margin + fraction * (100 - 2 * margin);
-        // 纵向：边缘 42%、中间最高 18%（整体上移确保整张卡完全展示）
         const y = oppCount === 1
           ? 22
           : 42 - 24 * Math.sin(fraction * Math.PI);
@@ -130,6 +142,63 @@ export class Renderer {
       const actions = this.elements.humanActions;
       if (actions) actions.innerHTML = this.renderQuickActions(human);
     }
+  }
+
+  // 手机竖屏圆桌布局：所有玩家（含 human）位置由 N + seat 决定
+  // 行 row: 'top' | 'mid' | 'bot'；列 col: 行内 0-based；total: 该行总数
+  // 顺时针走位映射到屏幕 — 自己为 mid，CW 邻居在 bot 右，CCW 邻居在 bot 左
+  static getMobileSeatLayout(N, seat) {
+    const M = {
+      4: { 0: ['mid', 0, 1], 1: ['bot', 1, 2], 2: ['top', 0, 1], 3: ['bot', 0, 2] },
+      5: { 0: ['mid', 0, 1], 1: ['bot', 1, 2], 2: ['top', 1, 2], 3: ['top', 0, 2], 4: ['bot', 0, 2] },
+      6: { 0: ['mid', 0, 1], 1: ['bot', 1, 2], 2: ['top', 2, 3], 3: ['top', 1, 3], 4: ['top', 0, 3], 5: ['bot', 0, 2] },
+      7: { 0: ['mid', 0, 1], 1: ['bot', 2, 3], 2: ['bot', 1, 3], 3: ['top', 2, 3], 4: ['top', 1, 3], 5: ['top', 0, 3], 6: ['bot', 0, 3] },
+      8: { 0: ['mid', 0, 1], 1: ['bot', 2, 3], 2: ['bot', 1, 3], 3: ['top', 3, 4], 4: ['top', 2, 4], 5: ['top', 1, 4], 6: ['top', 0, 4], 7: ['bot', 0, 3] },
+    };
+    return (M[N] && M[N][seat]) || ['top', 0, 1];
+  }
+
+  renderMobilePortrait(players, human, opponents) {
+    const oppArea = this.elements.opponentsArea;
+    if (!oppArea) return;
+    oppArea.innerHTML = '';
+    const N = players.length;
+    oppArea.className = `opponents-area opponents-${opponents.length} mobile-portrait players-${N}`;
+
+    // 隐藏底部那个 humanCardWrap（手机端我们把人放到 game-area 中间）
+    if (this.elements.humanCardWrap) this.elements.humanCardWrap.innerHTML = '';
+
+    // 渲染顺时针箭头背景（出牌顺序提示）
+    const arrow = document.createElement('div');
+    arrow.className = 'mobile-turn-arrow';
+    arrow.innerHTML = `<svg viewBox="0 0 100 100" preserveAspectRatio="none">
+      <defs>
+        <marker id="arrhead" markerWidth="10" markerHeight="10" refX="5" refY="5" orient="auto">
+          <polygon points="0 0, 10 5, 0 10" fill="rgba(243,156,18,0.35)"/>
+        </marker>
+      </defs>
+      <path d="M 80 85 Q 95 50 80 15 Q 50 5 20 15 Q 5 50 20 85 Q 50 95 80 85"
+            fill="none" stroke="rgba(243,156,18,0.25)" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#arrhead)"/>
+    </svg>`;
+    oppArea.appendChild(arrow);
+
+    const place = (player) => {
+      const [row, col, total] = Renderer.getMobileSeatLayout(N, player.index);
+      const xMargin = 4;
+      const x = xMargin + (col + 0.5) / total * (100 - 2 * xMargin);
+      const y = row === 'top' ? 17 : row === 'mid' ? 50 : 83;
+      const wrap = document.createElement('div');
+      wrap.className = `opp-seat mobile-seat seat-${row}`;
+      if (player.isHuman) wrap.classList.add('seat-human');
+      wrap.style.left = `${x}%`;
+      wrap.style.top = `${y}%`;
+      const card = this.createPlayerCard(player);
+      wrap.appendChild(card);
+      player.element = card;
+      oppArea.appendChild(wrap);
+    };
+
+    players.forEach(place);
   }
 
   createPlayerCard(player) {
