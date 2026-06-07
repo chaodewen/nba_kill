@@ -10,6 +10,8 @@ const DEFAULT_TEXT = {
 };
 
 const BEEP_PRESETS = {
+  // 通用出牌音色（短促清脆，所有 flashCardPlay 都垫一个）
+  card_play: { freq: 660, dur: 0.06, type: 'triangle', gain: 0.10, decay: 0.5, slide: 880 },
   sha:    { freq: 220, dur: 0.10, type: 'square',   gain: 0.10, decay: 0.7 },
   shan:   { freq: 600, dur: 0.08, type: 'triangle', gain: 0.10, decay: 0.6, slide: 800 },
   tao:    { freq: 523, dur: 0.10, type: 'sine',     gain: 0.10, decay: 0.5, slide: 784 },

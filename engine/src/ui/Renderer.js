@@ -573,7 +573,7 @@ export class Renderer {
   }
 
   // 出牌动效：在玩家卡片上飘出一张被使用的牌名（投/盖/佳得乐 等都通用）
-  // 同步 game.fx 用中文 TTS 报牌名，气势喊出来
+  // 同步 game.fx 用中文 TTS 报牌名 + 一个底色 beep（保证即便 TTS 不可用也有声音）
   flashCardPlay(player, cardName, color) {
     if (!player) return;
     const card = document.getElementById(`player-${player.index}`);
@@ -584,6 +584,8 @@ export class Renderer {
     if (color) burst.style.background = color;
     card.appendChild(burst);
     setTimeout(() => burst.remove(), 1900);
+    // 底色 beep（card_play 没有 DEFAULT_TEXT，纯 beep）
+    this.game?.fx?.play?.('card_play');
     // TTS 报牌名（用 cardName 的中文）
     this.game?.fx?.speak?.(cardName);
   }
