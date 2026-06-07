@@ -21,6 +21,7 @@ const MANIFEST = resolve(OUT_DIR, 'manifest.json');
 const VOICE = process.env.NBA_VOICE || 'zh-CN-YunjianNeural'; // 体育解说男声
 const RATE = process.env.NBA_VOICE_RATE || '+0%';
 const PITCH = process.env.NBA_VOICE_PITCH || '-2Hz';
+const VOICE_LOCALE = process.env.NBA_VOICE_LOCALE || VOICE.match(/^[a-z]{2}-[A-Z]{2}/)?.[0] || 'zh-CN';
 
 const NICKS = ['小皇帝', '黑曼巴', '萌神', '大鲨鱼', '石佛', '死神', '闪电侠',
                '保罗', '大胡子', '可怕', '狼王', '魔兽', '雷神', '蝙蝠侠', '妖刀', 'FMVP'];
@@ -105,11 +106,14 @@ async function main() {
 
   const tts = new MsEdgeTTS();
   await tts.setMetadata(VOICE, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3, {
+    voiceLocale: VOICE_LOCALE,
     rate: RATE,
     pitch: PITCH,
   }).catch(async () => {
     // 老版本 msedge-tts 可能不支持 rate/pitch metadata，回退
-    await tts.setMetadata(VOICE, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3);
+    await tts.setMetadata(VOICE, OUTPUT_FORMAT.AUDIO_24KHZ_48KBITRATE_MONO_MP3, {
+      voiceLocale: VOICE_LOCALE,
+    });
   });
 
   // 顺序生成（msedge-tts 的 stream 没法并发，并发会让 ws 互相干扰）

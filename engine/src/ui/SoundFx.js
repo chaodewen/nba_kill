@@ -20,7 +20,7 @@ const COMMENTARY = {
   lebusishu: ['犯规麻烦！多打少了！'],
   bingliangcunduan: ['体能危机！跑不起来了！'],
   shandian: ['伤病隐患！随时可能炸雷！'],
-  equip: ['装备上了！', '换装备！'],
+  equip: ['排兵布阵！', '战术板！教练写了好东西！'],
   end_turn: ['回合结束！换人！', '这一波打完！'],
   discard: ['弃牌！', '清理手牌！'],
   hit: ['进了！得手！'],
