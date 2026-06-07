@@ -331,10 +331,17 @@ export function aiDecideCard(player, players) {
 /**
  * AI 决定是否出盖
  * 策略：HP 越低越倾向使用所有可用的盖；HP 高时省着用
+ * Battier 站位：黑色手牌（黑桃/梅花）也可以当盖
  */
 export function aiDecideShan(player, shaCard, attacker) {
   const needCount = getRequiredShanCount(attacker, player);
-  const shanCount = player.handCards.filter(c => c.key === 'shan').length;
+  const realShanCount = player.handCards.filter(c => c.key === 'shan').length;
+
+  // Battier 站位：黑色手牌可当盖（黑桃 spade / 梅花 club）
+  const battierBonus = player.character?.key === 'shane_battier'
+    ? player.handCards.filter(c => c.key !== 'shan' && (c.suit === 'spade' || c.suit === 'club')).length
+    : 0;
+  const totalAvailable = realShanCount + battierBonus;
 
   // 联防体系（八卦）使用倾向：HP <= 2 必试；HP 高时 50%
   if (player.hasBagua()) {
@@ -343,7 +350,7 @@ export function aiDecideShan(player, shaCard, attacker) {
     }
   }
 
-  if (shanCount < needCount) {
+  if (totalAvailable < needCount) {
     return { useShan: false };
   }
 

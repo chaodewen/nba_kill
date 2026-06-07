@@ -915,6 +915,7 @@ export class Game {
       }
 
       if (decision.useShan) {
+        // 优先用真盖；不够时若是 Battier 用黑色手牌补（站位）
         const shanCount = Math.min(decision.count, target.handCards.filter(c => c.key === 'shan').length);
         for (let i = 0; i < shanCount; i++) {
           const idx = target.handCards.findIndex(c => c.key === 'shan');
@@ -923,7 +924,19 @@ export class Game {
             this.discardWithFlash(shan, target);
           }
         }
-        this.renderer.addLog(`🛡️ ${target.character.name} 使用 ${shanCount} 张【盖】盖避成功`, 'normal');
+        // Battier 站位：真盖不够则用黑色手牌补
+        let extraNeeded = decision.count - shanCount;
+        const isBattier = target.character?.key === 'shane_battier';
+        if (extraNeeded > 0 && isBattier) {
+          for (let i = 0; i < extraNeeded; i++) {
+            const idx = target.handCards.findIndex(c => c.key !== 'shan' && (c.suit === 'spade' || c.suit === 'club'));
+            if (idx === -1) break;
+            const c = target.handCards.splice(idx, 1)[0];
+            this.discardWithFlash(c, target);
+            this.renderer.addLog(`✨ ${target.character.name} 触发【站位】，将黑色手牌【${c.name}】当【盖】使用`, 'skill');
+          }
+        }
+        this.renderer.addLog(`🛡️ ${target.character.name} 使用 ${decision.count} 张【盖】盖避成功`, 'normal');
         this.renderer.flashCardPlay(target, '盖', '#3498db');
         this.fx?.play?.('shan');
         this.renderer.updatePlayer(target);
@@ -952,24 +965,41 @@ export class Game {
             }
           }
         }
-        target.takeDamage(damage);
-        this.renderer.updatePlayer(target);
-        this.renderer.flashHpDelta?.(target, -damage);
-        this.fx?.play?.('hit');
-        this.renderer.addLog(`💥 ${target.character.name} 受到 ${damage} 点伤害，剩余 ${target.hp} 点体能`, 'play');
-
-        this.handleDamageSkills(player, target, card);
-
-        // 「锋线尖刃」同位置协同：投造成伤害后额外弃目标 1 张牌
-        if (damage > 0 && target.isAlive && player.character?.position === 'forward' && this.hasSamePositionAlive(player) && target.handCards.length > 0) {
-          const idx = Math.floor(Math.random() * target.handCards.length);
-          const c = target.handCards.splice(idx, 1)[0];
-          this.deck.discard(c);
-          this.renderer.addLog(`⚡ ${player.character.name} 触发【锋线尖刃 · 前后夹击】，额外弃置 ${target.character.name} 的【${c.name}】`, 'skill');
-          this.renderer.updatePlayer(target);
+        // Shaq 罚球：投造伤害前，target 可令攻击者弃 1 张牌完全免去此伤害
+        // AI 决策：target 通常接受免伤（弃 1 比受 1 点伤更便宜）
+        if (damage > 0) {
+          const r = this.skills?.checkTrigger?.(player, 'about_to_damage', { source: player, target, card });
+          if (r?.effect === 'force_choice' && r.choices?.includes('discard_attacker_card')) {
+            if (target.handCards.length > 0 && player.handCards.length > 0) {
+              const idx = Math.floor(Math.random() * player.handCards.length);
+              const c = player.handCards.splice(idx, 1)[0];
+              this.discardWithFlash(c, player);
+              this.renderer.addLog(`✨ ${target.character.name} 触发【${r.name}】，令 ${player.character.name} 弃【${c.name}】免去此伤害`, 'skill');
+              this.renderer.updatePlayer(player);
+              damage = 0;
+            }
+          }
         }
+        if (damage > 0) {
+          target.takeDamage(damage);
+          this.renderer.updatePlayer(target);
+          this.renderer.flashHpDelta?.(target, -damage);
+          this.fx?.play?.('hit');
+          this.renderer.addLog(`💥 ${target.character.name} 受到 ${damage} 点伤害，剩余 ${target.hp} 点体能`, 'play');
 
-        this.checkDeath(target, player);
+          this.handleDamageSkills(player, target, card);
+
+          // 「锋线尖刃」同位置协同：投造成伤害后额外弃目标 1 张牌
+          if (target.isAlive && player.character?.position === 'forward' && this.hasSamePositionAlive(player) && target.handCards.length > 0) {
+            const idx = Math.floor(Math.random() * target.handCards.length);
+            const c = target.handCards.splice(idx, 1)[0];
+            this.deck.discard(c);
+            this.renderer.addLog(`⚡ ${player.character.name} 触发【锋线尖刃 · 前后夹击】，额外弃置 ${target.character.name} 的【${c.name}】`, 'skill');
+            this.renderer.updatePlayer(target);
+          }
+
+          this.checkDeath(target, player);
+        }
       }
 
       player.hasUsedSha = true;
@@ -1524,6 +1554,68 @@ export class Game {
         }
         this.renderer.updatePlayer(player);
         return true;
+      }
+
+      // Curry 三分雨主动技：弃两张同花色手牌，视为使用一张三分雨
+      case 'discard_as_wanjian': {
+        const eligibleSuits = result.eligibleSuits || [];
+        if (eligibleSuits.length === 0) return false;
+        const suit = eligibleSuits[0];
+        const cards = player.handCards.filter(c => c.suit === suit).slice(0, 2);
+        if (cards.length < 2) return false;
+        cards.forEach(c => {
+          const idx = player.handCards.indexOf(c);
+          if (idx >= 0) player.handCards.splice(idx, 1);
+          this.discardWithFlash(c, player);
+        });
+        log(`弃【${cards[0].name}】【${cards[1].name}】视为使用一张【三分雨】`);
+        this.renderer.updatePlayer(player);
+        const virtualWanjian = {
+          key: 'wanjian', name: '三分雨', suit, type: 'scroll',
+          color: '#e74c3c',
+          id: -Date.now() - Math.random(),
+          isVirtual: true,
+        };
+        setTimeout(() => this.handleWanjian(player, virtualWanjian), 1000);
+        return true;
+      }
+
+      // LeBron 全能：把一张手牌当投/盖/佳得乐使用（AI 自动按需求决策）
+      case 'card_as_basic': {
+        if (player.handCards.length === 0) return false;
+        // 决策：HP 低优先 tao；否则有目标转 sha；否则 skip 留给后续防御
+        if (player.hp < player.maxHp && player.handCards.length >= 2) {
+          if (player.hp <= Math.ceil(player.maxHp / 2)) {
+            const c = player.handCards.shift();
+            this.discardWithFlash(c, player);
+            log(`将【${c.name}】当【佳得乐】使用`);
+            setTimeout(() => this.handleTao(player, player), 800);
+            return true;
+          }
+        }
+        // 转 sha：要求未用过 sha + 有合法目标
+        if (!player.hasUsedSha) {
+          const candidates = this.players.filter(p =>
+            p !== player && p.isAlive && canAttack(player, p, this.players) && isEnemy(player, p)
+          );
+          if (candidates.length > 0) {
+            candidates.sort((a, b) => a.hp - b.hp);
+            const t = candidates[0];
+            const c = player.handCards.shift();
+            this.discardWithFlash(c, player);
+            log(`将【${c.name}】当【投】用于 ${t.character.name}`);
+            const virtualSha = {
+              key: 'sha', name: '投', suit: c.suit, type: 'basic',
+              color: '#e74c3c',
+              id: -Date.now() - Math.random(),
+              isVirtual: true,
+            };
+            setTimeout(() => this.handleSha(player, t, virtualSha), 800);
+            return true;
+          }
+        }
+        // 没合适场景，跳过本次（不消耗 oncePerRound 在 AI 流程中已经标记 used）
+        return false;
       }
 
       // Ray Allen 绝平：被佳得乐救起后视为出一张投

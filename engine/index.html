@@ -1954,18 +1954,18 @@
       .main { padding: 3px; gap: 3px; }
 
       /* —— Header —— */
-      .header { padding: 4px 6px; gap: 4px; }
-      .logo-svg { width: 30px !important; height: 30px !important; }
+      .header { padding: 3px 6px; gap: 4px; min-height: 38px; }
+      .logo-svg { width: 28px !important; height: 28px !important; }
       .logo h1 { display: none; }
       .deck-info { display: none; }
       .header-right { gap: 4px; }
-      .header-btn { padding: 5px 8px; gap: 0; }
+      .header-btn { padding: 4px 7px; gap: 0; }
       .header-btn-label { display: none; }
-      .header-btn-icon { font-size: 16px; }
+      .header-btn-icon { font-size: 15px; }
       .status-badge { padding: 2px 6px; font-size: 9px; }
 
       /* —— 回合栏 —— */
-      .turn-bar { padding: 4px 8px; }
+      .turn-bar { padding: 3px 8px; }
       .turn-number { font-size: 12px; }
 
       /* —— Opp 区改横向滚动 flex（绝对位置弧形禁用） —— */
@@ -2058,20 +2058,24 @@
       .human-actions { gap: 5px !important; padding: 0 !important; }
       .human-actions .quick-btn { padding: 6px 4px !important; font-size: 11px !important; min-height: 28px !important; }
 
-      /* —— Bottom panel 收成 22vh 底条带 —— */
+      /* —— Bottom panel 默认 16vh 显示 ~3 行日志，点击 log header 展开 —— */
       .bottom-panel {
         width: 100% !important;
         min-width: 0 !important;
         max-width: none !important;
-        max-height: 22vh;
+        max-height: 16vh;
         flex: 0 0 auto !important;
+        transition: max-height 0.3s ease;
+      }
+      .bottom-panel.expanded {
+        max-height: 60vh !important;
       }
       .control-bar { gap: 4px !important; padding: 4px !important; }
       .control-bar .btn { padding: 6px 10px !important; font-size: 12px !important; }
       .player-count-select { font-size: 12px !important; padding: 4px 6px !important; }
 
-      .log-content-inner { padding: 4px 8px !important; font-size: 11px !important; line-height: 1.45 !important; }
-      .log-entry { padding: 3px 5px !important; margin: 1px 0 !important; }
+      .log-content-inner { padding: 4px 8px !important; font-size: 11px !important; line-height: 1.4 !important; }
+      .log-entry { padding: 2px 5px !important; margin: 1px 0 !important; }
 
       /* —— 模态弹窗适配窄屏 —— */
       .modal-box.skill-layout {
@@ -2090,6 +2094,46 @@
       .target-banner { font-size: 12px !important; padding: 6px 8px !important; gap: 6px !important; }
       .settings-panel { width: 80vw !important; right: -85vw; padding: 12px !important; }
     }
+
+    /* ============================================================ */
+    /* 横屏：iPhone 16 横屏 852×393 — 让 8 个对手都平铺，不再横滑 */
+    /* ============================================================ */
+    @media (max-width: 1024px) and (orientation: landscape) and (max-height: 500px) {
+      /* opp 区按 8 等分，flex shrink 平铺，不滚 */
+      .opponents-area {
+        overflow-x: hidden !important;
+        justify-content: space-around !important;
+        height: clamp(110px, 28vh, 145px) !important;
+        padding: 2px 4px !important;
+      }
+      .opponents-area .opp-seat {
+        width: clamp(72px, 11.5%, 105px) !important;
+        height: 100% !important;
+        min-width: 0 !important;
+      }
+      .opp-seat .player-card { padding: 3px 4px !important; }
+      .opp-seat .player-avatar { width: 26px !important; height: 26px !important; font-size: 11px !important; }
+      .opp-seat .player-name { font-size: 10px !important; }
+      .opp-seat .position-tag { font-size: 8px !important; padding: 0 4px !important; }
+      .opp-seat .identity-tag { font-size: 8px !important; padding: 0 4px !important; }
+      .opp-seat .distance-tag { font-size: 9px !important; padding: 0 3px !important; }
+      .opp-seat .hp-display { font-size: 10px !important; }
+      .opp-seat .hp-number { font-size: 12px !important; }
+      .opp-seat .equipment-bar { display: none !important; }
+      .opp-seat .hand-back { width: 14px !important; height: 18px !important; margin-left: -8px !important; }
+      .opp-seat .hand-back::after { font-size: 8px !important; }
+      .opp-seat .hand-section { height: 18% !important; bottom: 4% !important; }
+
+      /* 横屏 human 区收紧高度 */
+      .human-section { min-height: 100px !important; }
+      .human-card-wrap { flex: 0 0 130px !important; }
+      .human-hand { min-height: 60px !important; max-height: 70px !important; }
+      .mini-card { width: 50px !important; height: 62px !important; }
+      .human-actions .quick-btn { min-height: 24px !important; padding: 4px !important; font-size: 10px !important; }
+
+      /* 横屏 bottom panel 默认 12vh */
+      .bottom-panel { max-height: 12vh !important; }
+      .bottom-panel.expanded { max-height: 50vh !important; }
   </style>
 </head>
 <body>

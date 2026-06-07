@@ -864,6 +864,9 @@ export class Renderer {
     this.logExpanded = !this.logExpanded;
     this.elements.logContent.classList.toggle('show', this.logExpanded);
     this.elements.logToggle.textContent = this.logExpanded ? '收起 ▲' : '展开 ▼';
+    // 手机端：扩展 / 收起 bottom-panel 占用高度（CSS 由 .bottom-panel.expanded 控制）
+    const panel = document.querySelector('.bottom-panel');
+    if (panel) panel.classList.toggle('expanded', this.logExpanded);
   }
 
   // 全局筛选

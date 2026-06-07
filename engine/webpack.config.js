@@ -37,7 +37,9 @@ module.exports = {
     static: {
       directory: __dirname,
     },
+    host: '0.0.0.0',
     port: 3006,
+    allowedHosts: 'all',
     hot: true,
     open: false
   },
