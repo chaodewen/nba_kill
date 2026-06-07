@@ -291,10 +291,17 @@ export class Game {
     this.renderer.updateUI(this);
 
     this.renderer.addLog(`═══ 第 ${this.turnCount} 回合 - ${player.character.name} ═══`, 'turn');
-    // 回合开始：英文 voice 念出 NBA 球员名（"LeBron" / "Kobe" / "Curry" ...）
-    const voiceName = player.character.voiceName || player.character.name;
+    // 回合开始：杨毅风格中文解说 — 用球员中文昵称
+    const nick = player.character.nickname || player.character.cnName || player.character.name;
+    const turnLines = [
+      `${nick} 上场！`,
+      `轮到 ${nick} 了！`,
+      `${nick} 的回合！`,
+      `看 ${nick} 这一波！`,
+    ];
+    const line = turnLines[Math.floor(Math.random() * turnLines.length)];
     this.fx?.play?.('card_play', { silent: true });
-    this.fx?.speakName?.(voiceName);
+    this.fx?.speak?.(line);
     
     // 准备阶段
     this.preparePhase(player);
@@ -314,6 +321,8 @@ export class Game {
       const v = judgeCard?.value ?? 0;
       const isStrike = judgeCard && judgeCard.suit === 'spade' && v >= 2 && v <= 9;
       this.renderer.addLog(`⚡ 伤病隐患判定：${judgeCard?.name || '?'}${isStrike ? ' — 命中' : ' — 未命中，移交下家'}`, 'normal');
+      const nick = player.character.nickname || player.character.name;
+      this.fx?.speak?.(isStrike ? `炸雷了！${nick} 直接受伤三点！` : `躲过一劫！这雷转给下家！`);
       player.judgeCards = player.judgeCards.filter(j => j !== shandian);
       if (isStrike) {
         player.takeDamage(3);
@@ -370,6 +379,8 @@ export class Game {
       const card = this.deck.judge();
       const isClub = card && card.suit === 'club';
       this.renderer.addLog(`体能危机判定：${isClub ? '梅花' : '非梅花'}`, 'normal');
+      const nick = player.character.nickname || player.character.name;
+      this.fx?.speak?.(isClub ? `梅花！补给到位，${nick} 摸牌！` : `体能告急！${nick} 这回合摸不到牌了！`);
 
       player.judgeCards = player.judgeCards.filter(j => j !== bingliang);
       this.deck.discard(bingliang);
@@ -411,7 +422,9 @@ export class Game {
       const card = this.deck.judge();
       const isHeart = card && card.suit === 'heart';
       this.renderer.addLog(`犯规麻烦判定：${isHeart ? '红桃' : '非红桃'}`, 'normal');
-      
+      const nick = player.character.nickname || player.character.name;
+      this.fx?.speak?.(isHeart ? `红桃！${nick} 状态在线，正常出牌！` : `犯规了！${nick} 这回合上不了场！`);
+
       if (!isHeart) {
         this.renderer.addLog('跳过出牌阶段', 'skill');
         player.judgeCards = player.judgeCards.filter(j => j !== lebu);

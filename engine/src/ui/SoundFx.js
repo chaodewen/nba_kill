@@ -63,8 +63,12 @@ export class SoundFx {
     if (!this.synth) return;
     const pick = () => {
       const voices = this.synth.getVoices();
-      // 中文：优先 Tingting（macOS）→ Yating → 任何 zh-CN → 任何 zh
-      this.zhVoice = voices.find(v => /tingting/i.test(v.name))
+      // 中文（杨毅风格 — 优先成熟男声 / 不行就 fallback 女声 + pitch 调低）
+      const isMale = (v) => /male|男|lin[-_]?feng|kang[-_]?kang|hui[-_]?hui|kaiwei|yunjian|yunyang|yunxi|liang|hu-hu|yang/i.test(v.name);
+      const isZh = (v) => /^zh/i.test(v.lang) || /chinese|mandarin/i.test(v.name);
+      this.zhVoice = voices.find(v => isZh(v) && isMale(v))               // 中文男声
+        || voices.find(v => v.lang === 'zh-CN' && /enhanced|premium/i.test(v.name))
+        || voices.find(v => /tingting/i.test(v.name))
         || voices.find(v => /yating/i.test(v.name))
         || voices.find(v => v.lang === 'zh-CN')
         || voices.find(v => /^zh/i.test(v.lang))
@@ -76,6 +80,8 @@ export class SoundFx {
         || voices.find(v => v.lang === 'en-US')
         || voices.find(v => /^en/i.test(v.lang))
         || null;
+      // 标记找到的男/女声 — 用于 speak() 调 pitch
+      this.zhVoiceIsMale = this.zhVoice && isMale(this.zhVoice);
     };
     pick();
     if (this.synth.onvoiceschanged !== undefined) {
@@ -122,19 +128,18 @@ export class SoundFx {
     }
   }
 
-  // 喊牌名：text 是要报的中文（"投"/"盖"/"三分雨" 等）
-  // 气势配置：rate 1.25 / pitch 1.2 / volume 1.0
-  // 队列管理：不再 cancel 上一句，避免 AOE / 连锁动作把前面的语音打断；
-  // 但若 pending 队列过长（>3 条）则丢掉最旧一条防止严重滞后
-  // lang: 'zh' (默认 中文) | 'en' (英文 — 用于 NBA 球员名朗读)
+  // 喊牌名 / 解说语：杨毅风格 — 偏成熟男声节奏
+  // 队列管理：不再 cancel 上一句，避免 AOE / 连锁动作把前面的语音打断
+  // lang: 'zh' (默认 中文) | 'en' (英文 — NBA 球员名朗读)
   speak(text, lang = 'zh') {
     if (!this.enabled || !this.synth || !text) return;
     try {
       const u = new SpeechSynthesisUtterance(String(text));
       const isEn = lang === 'en';
       u.lang = isEn ? 'en-US' : 'zh-CN';
-      u.rate = isEn ? 1.05 : 1.25;
-      u.pitch = isEn ? 1.0 : 1.2;
+      u.rate = isEn ? 1.05 : 1.0;
+      // 杨毅风：成熟稳重，pitch 偏低；如果系统真的有中文男声 voice 则正常 1.0，否则压到 0.78 让女声听起来沉
+      u.pitch = isEn ? 1.0 : (this.zhVoiceIsMale ? 0.95 : 0.78);
       u.volume = 1.0;
       const v = isEn ? this.enVoice : this.zhVoice;
       if (v) u.voice = v;
