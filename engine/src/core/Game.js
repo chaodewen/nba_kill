@@ -1426,6 +1426,29 @@ export class Game {
         return true;
       }
 
+      // Ray Allen 绝平：被佳得乐救起后视为出一张投
+      case 'virtual_sha': {
+        const candidates = this.players.filter(p =>
+          p !== player && p.isAlive && canAttack(player, p, this.players) && isEnemy(player, p)
+        );
+        if (candidates.length === 0) {
+          this.renderer.addLog(`✨ ${player.character.name} 触发【${result.name}】 — 攻击范围内无敌人，无法发动`, 'skill');
+          return false;
+        }
+        // 优先选体能最低的敌人
+        candidates.sort((a, b) => a.hp - b.hp);
+        const t = candidates[0];
+        const virtualSha = {
+          key: 'sha', name: '投', suit: 'spade', type: 'basic',
+          color: '#e74c3c',
+          id: -Date.now() - Math.random(),
+          isVirtual: true,
+        };
+        log(`视为对 ${t.character.name} 使用一张【投】`);
+        setTimeout(() => this.handleSha(player, t, virtualSha), 1200);
+        return true;
+      }
+
       case 'discard_target_card': {
         const t = result.target;
         const cnt = result.count || 1;
@@ -1553,31 +1576,79 @@ export class Game {
   }
 
   checkDeath(player, killer) {
-    if (!player.isAlive) {
-      this.renderer.addLog(`💀 ${player.character.name} 阵亡！`, 'death');
+    if (player.isAlive) return;
 
-      // 记录精彩镜头：击杀
-      if (this.highlights) {
-        this.highlights.push({
-          kind: 'kill',
-          source: killer,
-          target: player,
-          turn: this.turnCount,
-        });
-      }
-      if (killer && this.killCounts) {
-        const k = killer.character?.name || '?';
-        this.killCounts[k] = (this.killCounts[k] || 0) + 1;
-      }
-
-      // 击败奖励
-      if (killer && isEnemy(killer, player)) {
-        const cards = this.deck.drawMultiple(3);
-        killer.drawCards(cards);
-        this.renderer.addLog(`🎁 ${killer.character.name} 击败敌人，摸 3 张牌`, 'skill');
-        this.renderer.updatePlayer(killer);
-      }
+    // 濒死阶段：正式宣布阵亡前，按座位顺序问是否有人出佳得乐救
+    const saved = this.tryRescueDying(player);
+    if (saved) {
+      // Ray Allen 绝平等技能在被救后触发
+      this.applySkillResult(player, this.skills?.checkTrigger?.(player, 'saved_by_tao', { target: player, source: player }));
+      return;
     }
+
+    // 没人救 → 正式阵亡
+    this.renderer.addLog(`💀 ${player.character.name} 阵亡！`, 'death');
+
+    // 记录精彩镜头：击杀
+    if (this.highlights) {
+      this.highlights.push({
+        kind: 'kill',
+        source: killer,
+        target: player,
+        turn: this.turnCount,
+      });
+    }
+    if (killer && this.killCounts) {
+      const k = killer.character?.name || '?';
+      this.killCounts[k] = (this.killCounts[k] || 0) + 1;
+    }
+
+    // 击败奖励
+    if (killer && isEnemy(killer, player)) {
+      const cards = this.deck.drawMultiple(3);
+      killer.drawCards(cards);
+      this.renderer.addLog(`🎁 ${killer.character.name} 击败敌人，摸 3 张牌`, 'skill');
+      this.renderer.updatePlayer(killer);
+    }
+  }
+
+  // 濒死救援：HP<=0 的玩家，按座位顺序问是否出佳得乐救
+  // 顺序：dying 自己 → 顺时针下家 → ... → 最后 dying 上家
+  // 每张佳得乐 +1 HP；任何时候 HP > 0 即停。返回是否救回
+  tryRescueDying(player) {
+    this.renderer.addLog(`⚠️ ${player.character.name} 濒死！(HP=${player.hp})`, 'death');
+
+    const N = this.players.length;
+    const order = [];
+    for (let i = 0; i < N; i++) {
+      const idx = (player.index + i) % N;
+      const p = this.players[idx];
+      // dying 自己仍可作为 savior（自救）；其他必须 isAlive
+      if (p === player || p.isAlive) order.push(p);
+    }
+
+    for (const savior of order) {
+      if (player.hp > 0) break; // 已救回
+      if (!savior.handCards.some(c => c.key === 'tao')) continue;
+      if (!aiDecideTao(savior, player)) continue;
+
+      const taoIdx = savior.handCards.findIndex(c => c.key === 'tao');
+      const tao = savior.handCards.splice(taoIdx, 1)[0];
+      this.discardWithFlash(tao, savior);
+
+      // 自救 / 救人都 +1 HP
+      player.hp += 1;
+      if (player.hp > 0) player.isAlive = true;
+
+      const verb = savior === player ? '自救' : `救起 ${player.character.name}`;
+      this.renderer.addLog(`💖 ${savior.character.name} 使用【佳得乐】${verb}`, 'skill');
+      this.renderer.flashCardPlay(savior, '佳得乐', '#2ecc71');
+      this.renderer.flashHpDelta?.(player, 1);
+      this.renderer.updatePlayer(savior);
+      this.renderer.updatePlayer(player);
+    }
+
+    return player.isAlive;
   }
 
   discardPhase(player) {
