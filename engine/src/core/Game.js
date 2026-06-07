@@ -8,6 +8,7 @@ import { Deck } from './Deck';
 import { SkillSystem } from './Skills';
 import { Renderer } from '../ui/Renderer';
 import { SoundFx } from '../ui/SoundFx';
+import { EventBus, wrapWithEvents, makeNoopProxy } from './EventBus';
 import {
   calculateDistance, canAttack, getShaDamage, getRequiredShanCount,
   checkGameOver, getAlivePlayers, getNextAlivePlayer,
@@ -15,12 +16,16 @@ import {
 } from './Logic';
 
 export class Game {
-  constructor() {
+  constructor(options = {}) {
     this.players = [];
     this.deck = null;
     this.skills = null;
     this.renderer = null;
-    
+    // 事件总线 — 所有 ui / fx 调用都会经此 emit，便于多人同步与 headless 跑
+    this.events = new EventBus();
+    // headless 模式：不创建真 Renderer / SoundFx，所有调用走 noop（Node / 测试 / 远端纯渲染端用）
+    this.headless = !!options.headless || (typeof window === 'undefined');
+
     this.playerCount = 4;
     this.currentPlayerIndex = 0;
     this.turnCount = 0;
@@ -35,7 +40,7 @@ export class Game {
       { key: 'opponent', name: '对手', team: 'opponent_side', goal: '击败核心。' },
       { key: 'solo', name: '独狼', team: 'solo', goal: '清理其他势力，最后击败核心。' }
     ];
-    
+
     this.playQueue = [];
     this.playInterval = null;
   }
@@ -49,24 +54,30 @@ export class Game {
     // 初始化技能系统
     this.skills = new SkillSystem(this);
 
-    // 初始化音效系统
-    this.fx = new SoundFx();
+    // 初始化音效系统 / 渲染器
+    // headless 模式（Node / 测试 / 仅订阅事件的远端）：用 noop proxy；真实环境：用真 Renderer / SoundFx
+    // 不论哪种模式，外层都套 wrapWithEvents — 调用即 emit，多人同步用统一 hook
+    if (this.headless) {
+      this.fx = wrapWithEvents(makeNoopProxy(), this.events, 'fx:');
+      this.renderer = wrapWithEvents(makeNoopProxy(), this.events, 'ui:');
+      return;
+    }
+    this.fx = wrapWithEvents(new SoundFx(), this.events, 'fx:');
+    const realRenderer = new Renderer(this);
+    realRenderer.cacheElements();
+    this.renderer = wrapWithEvents(realRenderer, this.events, 'ui:');
 
-    // 初始化渲染器并缓存元素
-    this.renderer = new Renderer(this);
-    this.renderer.cacheElements();
-    
     // 显示初始界面
     this.renderer.updateUI(this);
     this.renderer.showBuildTimestamp();
-    
+
     // 显示欢迎信息
     this.renderer.addLog('欢迎来到 NBA Kill。', 'system');
     this.renderer.addLog('点击"开始比赛"开始对战', 'system');
-    
+
     // 检查是否显示新手引导
-    if (this.renderer.shouldShowGuide()) {
-      setTimeout(() => this.renderer.showGuide(), 500);
+    if (realRenderer.shouldShowGuide()) {
+      setTimeout(() => realRenderer.showGuide(), 500);
     }
   }
 
