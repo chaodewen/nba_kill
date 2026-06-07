@@ -198,19 +198,48 @@ export function getNextAlivePlayer(players, currentIndex) {
 
 /**
  * AI 选择目标
+ * 评分维度：是否敌人 → 身份关键性（核心 / 独狼优先级高）→ 体能（残血优先）→ 距离（近优先，无范围限制时忽略）
  */
 export function aiSelectTarget(source, players, filter = () => true) {
-  const targets = players.filter(p => 
-    p !== source && 
-    p.isAlive && 
+  const targets = players.filter(p =>
+    p !== source &&
+    p.isAlive &&
     isEnemy(source, p) &&
     filter(p)
   );
-  
+
   if (targets.length === 0) return null;
-  
-  // 优先攻击体能低的
-  targets.sort((a, b) => a.hp - b.hp);
+
+  const scoreOf = (t) => {
+    let s = 0;
+    // 身份倾向：对手 / 独狼 当核心 → 优先打核心；核心当对手 / 独狼 → 优先打对手
+    const sId = source.identity?.key;
+    const tId = t.identity?.key;
+    if (sId === 'core' || sId === 'teammate') {
+      // 核心阵营：优先打对手 → 独狼 → 其他
+      if (tId === 'opponent') s += 30;
+      else if (tId === 'solo') s += 22;
+    } else if (sId === 'opponent') {
+      // 对手：优先打核心
+      if (tId === 'core') s += 40;
+      else if (tId === 'solo') s += 12;  // 防止独狼坐收渔利
+    } else if (sId === 'solo') {
+      // 独狼：人少时打核心收尾，人多时打对手 / 队友消耗
+      const aliveCnt = players.filter(p => p.isAlive).length;
+      if (aliveCnt <= 3) {
+        if (tId === 'core') s += 50;
+      } else {
+        if (tId === 'opponent' || tId === 'teammate') s += 18;
+      }
+    }
+    // 残血加分：HP 越低越优先（致命一击 / 收尾）
+    s += Math.max(0, 6 - t.hp) * 8;
+    // 距离加分：近的优先（攻击牌效率高，且对方装备少更危险）
+    s += Math.max(0, 5 - calculateDistance(source, t, players)) * 2;
+    return s;
+  };
+
+  targets.sort((a, b) => scoreOf(b) - scoreOf(a));
   return targets[0];
 }
 
@@ -219,7 +248,7 @@ export function aiSelectTarget(source, players, filter = () => true) {
  */
 export function aiDecideCard(player, players) {
   const handCards = player.handCards;
-  
+
   // 优先级：装备 > 佳得乐(血少) > 投 > 战术 > 其他
   const priority = {
     'weapon': 100,
@@ -230,21 +259,31 @@ export function aiDecideCard(player, players) {
     'scroll': 40,
     'delay': 30
   };
-  
-  // 找装备
+
+  // 找装备：但已有同槽装备且新的不更好就先不换
   const equips = handCards.filter(c => priority[c.type] >= 85);
   if (equips.length > 0) {
-    return { card: equips[0], action: 'equip' };
+    const eq = player.equipment || {};
+    const slotKey = (c) => ({ weapon: 'weapon', armor: 'armor', defense_horse: 'defenseHorse', offense_horse: 'offenseHorse' })[c.type];
+    const better = equips.find(c => {
+      const slot = slotKey(c);
+      const cur = eq[slot];
+      if (!cur) return true;
+      // 武器换更高 range；防具/战靴有就不换
+      if (c.type === 'weapon') return (c.range || 1) > (cur.range || 1);
+      return false;
+    });
+    if (better) return { card: better, action: 'equip' };
   }
-  
-  // 血少用佳得乐
-  if (player.hp < player.maxHp) {
-    const tao = handCards.find(c => c.key === 'tao');
-    if (tao) {
+
+  // 残血优先佳得乐自救（HP 1 必喝；HP <= maxHp/2 高概率喝）
+  const tao = handCards.find(c => c.key === 'tao');
+  if (tao && player.hp < player.maxHp) {
+    if (player.hp === 1 || player.hp <= Math.ceil(player.maxHp / 2)) {
       return { card: tao, action: 'use', target: player };
     }
   }
-  
+
   // 用投（如果有目标）
   if (!player.hasUsedSha || player.hasZhugeliannu()) {
     const sha = handCards.find(c => c.key === 'sha');
@@ -255,13 +294,17 @@ export function aiDecideCard(player, players) {
       }
     }
   }
-  
+
   // 用战术（含延时锦囊；排除裁判回看，因为它是响应牌）
   const scrolls = handCards.filter(c => (c.type === 'scroll' || c.type === 'delay') && c.key !== 'wuke');
   if (scrolls.length > 0) {
     // 优先使用非延时战术
     const normalScrolls = scrolls.filter(c => !['lebusishu', 'bingliangcunduan', 'shandian'].includes(c.key));
     if (normalScrolls.length > 0) {
+      // 无目标的（战术板 / 全场紧逼 / 三分雨 / 官方暂停）直接出
+      const noTarget = normalScrolls.find(c => ['wuzhong', 'nanman', 'wanjian', 'taoyuan'].includes(c.key));
+      if (noTarget) return { card: noTarget, action: 'use', target: player };
+
       const target = aiSelectTarget(player, players);
       if (target) {
         return { card: normalScrolls[0], action: 'use', target };
@@ -276,27 +319,39 @@ export function aiDecideCard(player, players) {
       }
     }
   }
-  
+
+  // 即便有 tao 但血未下半，没别的想做时也喝一下回血（避免 hp = max - 1 时一直不用）
+  if (tao && player.hp < player.maxHp) {
+    return { card: tao, action: 'use', target: player };
+  }
+
   return null;
 }
 
 /**
  * AI 决定是否出盖
+ * 策略：HP 越低越倾向使用所有可用的盖；HP 高时省着用
  */
 export function aiDecideShan(player, shaCard, attacker) {
-  // 攻击者技能可能要求多张盖响应
   const needCount = getRequiredShanCount(attacker, player);
   const shanCount = player.handCards.filter(c => c.key === 'shan').length;
-  
-  // 如果有联防体系，50% 概率判定
-  if (player.hasBagua() && Math.random() > 0.5) {
-    return { useBagua: true };
+
+  // 联防体系（八卦）使用倾向：HP <= 2 必试；HP 高时 50%
+  if (player.hasBagua()) {
+    if (player.hp <= 2 || Math.random() > 0.5) {
+      return { useBagua: true };
+    }
   }
-  
-  if (shanCount >= needCount) {
-    return { useShan: true, count: needCount };
+
+  if (shanCount < needCount) {
+    return { useShan: false };
   }
-  
+
+  // HP = 1 必出（保命）；HP <= maxHp/2 高概率出；HP 高时存盖给后续
+  if (player.hp === 1) return { useShan: true, count: needCount };
+  if (player.hp <= Math.ceil((player.maxHp || 4) / 2)) return { useShan: true, count: needCount };
+  // 高血时：手牌富余（>= 4）才肯出
+  if (player.handCards.length >= 4) return { useShan: true, count: needCount };
   return { useShan: false };
 }
 
