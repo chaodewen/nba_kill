@@ -371,8 +371,9 @@ export class Game {
     const shandian = player.judgeCards?.find(j => j.key === 'shandian');
     if (shandian) {
       const judgeCard = this.deck.judge();
-      const v = judgeCard?.value ?? 0;
-      const isStrike = judgeCard && judgeCard.suit === 'spade' && v >= 2 && v <= 9;
+      // 卡上字段是 number 不是 value（之前写错 value 永远 undefined → 永远不劈）
+      const n = judgeCard?.number ?? judgeCard?.value ?? 0;
+      const isStrike = judgeCard && judgeCard.suit === 'spade' && n >= 2 && n <= 9;
       this.renderer.addLog(`⚡ 伤病隐患判定：${judgeCard?.name || '?'}${isStrike ? ' — 命中' : ' — 未命中，移交下家'}`, 'normal');
       const nick = player.character.nickname || player.character.name;
       this.fx?.speak?.(isStrike ? `炸雷了！${nick} 直接受伤三点！` : `躲过一劫！这雷转给下家！`);
