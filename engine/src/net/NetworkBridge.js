@@ -16,31 +16,13 @@
 // （信令只走几 KB SDP/ICE，数据本身仍 P2P；trystero 0.25 起 torrent/mqtt/firebase 都被
 // 拆出独立包，只剩 nostr 是默认绑定 — 我们用 nostr）
 
-import { joinRoom, selfId, defaultRelayUrls } from 'trystero/nostr';
+import { joinRoom, selfId } from 'trystero/nostr';
 
 const APP_ID = 'nba-kill-v1';
 
-// 用更高的 redundancy（10 而不是默认 5）— 单 relay 不可达时多备份
-// 同时优先用大公开稳定 relay（damus.io / nos.lol / mostr.pub 这些日活高）
-const STABLE_RELAYS = [
-  'wss://relay.damus.io',
-  'wss://nos.lol',
-  'wss://relay.mostr.pub',
-  'wss://relay.nostr.place',
-  'wss://nostr.data.haus',
-  'wss://nostr.vulpem.com',
-  'wss://relay.angor.io',
-  'wss://schnorr.me',
-  'wss://yabu.me/v2',
-  'wss://relay.nostrdice.com',
-];
-const ROOM_CONFIG = {
-  appId: APP_ID,
-  relayConfig: {
-    urls: STABLE_RELAYS,
-    redundancy: 8,  // 同时连 8 个；任何 4 个能用就有信令
-  },
-};
+// 用 trystero/nostr 默认配置 — 它内置 ~46 个 nostr relay 随机选 5 个
+// 之前 v0.3.80 试图换成"稳定"白名单，反而更不稳；回到默认
+const ROOM_CONFIG = { appId: APP_ID };
 
 // ========== Host ==========
 export async function createHost(roomId) {
