@@ -2742,21 +2742,17 @@ export class Game {
   mpBack() { this._mpShowStep('choose'); }
 
   async mpCreateRoom() {
-    console.log('[mp] mpCreateRoom click');
     if (this.mpRoom) {
       this.renderer.addLog('已经在房间里了，请先退出', 'system');
       alert('已经在房间里了，请先退出');
       return;
     }
     try {
-      console.log('[mp] creating RoomHost...');
       this.mpRoom = new RoomHost(this, {
         maxPlayers: 4,
         onChange: () => this._mpRenderHostSlots(),
       });
-      console.log('[mp] RoomHost created, calling start()');
       await this.mpRoom.start();
-      console.log('[mp] RoomHost started, roomId =', this.mpRoom.roomId);
       const roomIdEl = document.getElementById('mp-room-id');
       if (roomIdEl) roomIdEl.textContent = this.mpRoom.roomId;
       this._mpShowStep('host');
@@ -2806,7 +2802,6 @@ export class Game {
   }
 
   mpStartGame() {
-    console.log('[mp] mpStartGame click');
     if (!this.mpRoom || this.mpRoom.role !== 'host') {
       alert('当前不是房主，不能开始比赛');
       return;
@@ -2816,7 +2811,6 @@ export class Game {
       this.mpRoom.beginStateSync();
       this.hideMultiplayerModal();
       this.renderer.addLog('▶️ 比赛开始（联机模式 · 房主权威）', 'system');
-      console.log('[mp] mpStartGame done, gameState=', this.gameState, 'players=', this.players?.length);
     } catch (e) {
       console.error('[mp] mpStartGame failed:', e);
       alert(`开始失败：${e?.message || e}\n\nF12 看 Console 详细错误`);

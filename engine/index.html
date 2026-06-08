@@ -660,6 +660,33 @@
     .kingdom-wu .kingdom-tag { background: var(--wu); color: #fff; }
     .kingdom-qun .kingdom-tag { background: var(--qun); color: #000; }
 
+    /* 联机模式：玩家卡上的控制者标签（房主 / 真人 / AI / 断线倒计时） */
+    .ctrl-tag {
+      display: inline-block;
+      font-size: 10px;
+      padding: 1px 6px;
+      margin-left: 4px;
+      border-radius: 8px;
+      font-weight: 700;
+      letter-spacing: 0.3px;
+      vertical-align: middle;
+      white-space: nowrap;
+      max-width: 84px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .ctrl-tag.ctrl-host { background: rgba(243, 156, 18, 0.22); color: #f39c12; border: 1px solid rgba(243, 156, 18, 0.4); }
+    .ctrl-tag.ctrl-human { background: rgba(46, 204, 113, 0.22); color: #2ecc71; border: 1px solid rgba(46, 204, 113, 0.4); }
+    .ctrl-tag.ctrl-ai { background: rgba(149, 165, 166, 0.22); color: #95a5a6; border: 1px solid rgba(149, 165, 166, 0.4); }
+    .ctrl-tag.ctrl-disconn {
+      background: rgba(231, 76, 60, 0.25); color: #e74c3c; border: 1px solid rgba(231, 76, 60, 0.5);
+      animation: ctrl-disconn-blink 0.8s ease-in-out infinite;
+    }
+    @keyframes ctrl-disconn-blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
     /* 身份标 — 方形 + 强对比配色 + 渐变 + 发光，和位置标尺寸对齐 */
     /* 默认隐藏对手身份；自己的可见；调试模式下全部可见；阵亡的玩家身份强制揭晓 */
     .identity-tag {

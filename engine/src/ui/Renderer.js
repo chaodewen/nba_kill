@@ -287,6 +287,9 @@ export class Renderer {
     const displayName = player.character.cnName || player.character.name;
     const isCore = identity.key === 'core';
     const corePrefix = isCore ? '<span class="core-mark" title="主力（队伍核心）">👑</span>' : '';
+    // 联机模式下显示控制者：真人玩家 + 昵称 / AI / 断线（只在 mp 模式有意义；单机模式 hidden）
+    const isMpGame = !!this.game?.mpRoom;
+    const controllerTag = isMpGame ? this._controllerTagHtml(player) : '';
     card.innerHTML = `
       <span class="distance-tag" id="dist-${player.index}"></span>
       <div class="status-area" id="status-${player.index}">${statusHtml}</div>
@@ -297,6 +300,7 @@ export class Renderer {
           <div class="player-name-row">
             ${corePrefix}<span class="player-name" onclick="event.stopPropagation(); game.showSkillModal('${player.character.key}')" style="cursor:pointer">${displayName}</span>
             <span class="identity-tag identity-${identity.key}" title="身份目标：${identity.goal}">${identity.name}</span>
+            ${controllerTag}
           </div>
           <div class="player-skill" title="点击查看技能详情" onclick="event.stopPropagation(); game.showSkillModal('${player.character.key}')">【${player.character.skill}】</div>
         </div>
@@ -445,6 +449,28 @@ export class Renderer {
       cardEl.classList.remove('flash-change');
       void cardEl.offsetWidth;
       cardEl.classList.add('flash-change');
+    }
+    // 联机模式下控制者标签（断线倒计时 / AI 接管切换）也刷新
+    this._updateControllerTag(player);
+  }
+
+  _updateControllerTag(player) {
+    if (!this.game?.mpRoom) return;
+    const cardEl = document.getElementById(`player-${player.index}`);
+    if (!cardEl) return;
+    const row = cardEl.querySelector('.player-name-row');
+    if (!row) return;
+    let tag = row.querySelector('.ctrl-tag');
+    const html = this._controllerTagHtml(player);
+    if (!html) {
+      if (tag) tag.remove();
+      return;
+    }
+    if (!tag) {
+      row.insertAdjacentHTML('beforeend', html);
+    } else {
+      // 直接替换 outerHTML 避免反复 insert
+      tag.outerHTML = html;
     }
   }
 
@@ -944,6 +970,45 @@ export class Renderer {
     if (!this.elements.cardPickModal) return;
     this.elements.cardPickModal.classList.remove('show');
     if (this.elements.cardPickBody) this.elements.cardPickBody.innerHTML = '';
+  }
+
+  // 联机模式下显示该 player 是真人 / AI / 断线中
+  // 数据来源：host 的 RoomHost.peers / disconnectedSlots，或 guest 收到的 meta.slots
+  _controllerTagHtml(player) {
+    const mp = this.game?.mpRoom;
+    if (!mp) return '';
+    if (mp.role === 'host') {
+      // 已在断线表里 — 显示断线倒计时
+      if (mp.disconnectedSlots) {
+        for (const [token, dc] of mp.disconnectedSlots) {
+          if (dc.slotIndex === player.index) {
+            const left = Math.max(0, Math.ceil((dc.leftAt + (mp.disconnectGraceMs || 30000) - Date.now()) / 1000));
+            return `<span class="ctrl-tag ctrl-disconn" id="ctrl-${player.index}">📡 ${left}s</span>`;
+          }
+        }
+      }
+      if (player.index === 0) return '<span class="ctrl-tag ctrl-host">👑 房主</span>';
+      if (player.isHuman && player._peerId) {
+        const peer = mp.peers?.get?.(player._peerId);
+        const name = peer?.displayName || '玩家';
+        return `<span class="ctrl-tag ctrl-human">🎮 ${this._escape(name)}</span>`;
+      }
+      return '<span class="ctrl-tag ctrl-ai">🤖 AI</span>';
+    }
+    // 加入端：从 meta.slots 找
+    const slot = mp.meta?.slots?.find(s => s.index === player.index);
+    if (!slot) return '';
+    if (slot.kind === 'host') return '<span class="ctrl-tag ctrl-host">👑 房主</span>';
+    if (slot.kind === 'guest') {
+      const me = (player.index === mp.mySlotIndex) ? '（你）' : '';
+      return `<span class="ctrl-tag ctrl-human">🎮 ${this._escape(slot.name)}${me}</span>`;
+    }
+    return '<span class="ctrl-tag ctrl-ai">🤖 AI</span>';
+  }
+
+  _escape(s) {
+    return String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
   }
 
   // 胜利弹窗 + 身份揭示

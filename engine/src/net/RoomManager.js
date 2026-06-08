@@ -210,12 +210,22 @@ export class RoomHost {
   }
 
   // 当 game state 有变化时按 slot 私有化广播给每个 guest（每秒一次定时刷新）
+  // 同时刷新本地玩家卡上的 controllerTag（断线倒计时 / AI 接管切换）
   beginStateSync() {
     if (this._stateSyncTimer) return;
     this._stateSyncTimer = setInterval(() => {
       if (!this.started) return;
       this._broadcastStatePrivacy();
+      this._refreshControllerTags();
     }, 1000);
+  }
+
+  _refreshControllerTags() {
+    const renderer = this.game?.renderer;
+    if (!renderer?._updateControllerTag) return;
+    for (const p of (this.game.players || [])) {
+      try { renderer._updateControllerTag(p); } catch (e) {}
+    }
   }
 
   leave() {
@@ -264,6 +274,12 @@ export class RoomGuest {
         this.game.humanPlayerIndex = this.mySlotIndex ?? 0;
         document.getElementById('mp-modal')?.classList.remove('show');
         this.game.renderer?.addLog?.(`▶️ 房主开始了比赛（你是 ${slot?.name || '观战者'}）`, 'system');
+      }
+      // meta 变了（玩家加入 / 断线 / AI 接管）刷新本地玩家卡 controllerTag
+      if (meta.started && this.game.players?.length) {
+        for (const p of this.game.players) {
+          try { this.game.renderer?._updateControllerTag?.(p); } catch (e) {}
+        }
       }
       this.onChange();
     });
