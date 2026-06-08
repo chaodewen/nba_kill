@@ -173,7 +173,8 @@ export class RoomHost {
 
   _buildSlots() {
     const slots = [];
-    slots.push({ index: 0, kind: 'host', name: '房主（你）' });
+    // host 自己 — name 写"房主"，client 自己显示时再决定是不是加"（你）"
+    slots.push({ index: 0, kind: 'host', name: '房主' });
     for (const [pid, p] of this.peers) {
       if (p.slotIndex != null) {
         slots.push({ index: p.slotIndex, kind: 'guest', name: p.displayName, peerId: pid });
@@ -280,25 +281,48 @@ export class RoomGuest {
   async start() {
     this.bridge = await joinAsGuest(this.roomId);
     this._myPeerId = this.bridge.selfId;
+    let hasJoined = false;
+    const sendJoin = () => {
+      if (hasJoined) return;
+      hasJoined = true;
+      this.bridge.sendIntent({
+        name: 'join',
+        token: this.token,
+        displayName: this.displayName,
+      });
+    };
+    // 关键：trystero P2P DataChannel 建立后再 send，避免 join 包在 ready 前丢失
+    this.bridge.onPeerJoin((peerId) => {
+      // host 端 peer 出现 → channel 建立 → 立刻 join
+      sendJoin();
+    });
     this.bridge.onPeerLeave((peerId) => {
-      // 房主断线 — guest 直接退出比赛（v2.1：先告诉用户，v2.2 再做接力）
+      // 房主断线 — guest 直接退出比赛
       if (this.meta?.hostPeerId && peerId === this.meta.hostPeerId) {
         this._onHostDisconnected();
       }
     });
     this.bridge.onMeta((meta) => {
       this.meta = meta;
-      // 找自己 slot：trystero selfId 跟 meta.slots[].peerId 比对
       const slot = (meta.slots || []).find(s => s.kind === 'guest' && s.peerId === this._myPeerId);
+      const prevSlot = this.mySlotIndex;
       this.mySlotIndex = slot?.index ?? null;
-      // 开局了：guest 端 game 也要切 humanPlayerIndex + 关闭联机 modal 让用户看到游戏区
       if (meta.started && this.game.gameState !== 'playing') {
         this.game.playerCount = meta.maxPlayers;
         this.game.humanPlayerIndex = this.mySlotIndex ?? 0;
         document.getElementById('mp-modal')?.classList.remove('show');
         this.game.renderer?.addLog?.(`▶️ 房主开始了比赛（你是 ${slot?.name || '观战者'}）`, 'system');
       }
-      // meta 变了（玩家加入 / 断线 / AI 接管）刷新本地玩家卡 controllerTag
+      // 关键：mySlotIndex 第一次确定 / 变化 + game.players 已存在时，要 sync isHuman 并重渲染
+      // 否则 _applyState 先于 onMeta 到达 → renderPlayers 时 mySlotIndex 还是 null → human 是 undefined → 牌桌渲染异常
+      if (this.mySlotIndex !== prevSlot && this.game.players?.length) {
+        for (const p of this.game.players) {
+          p.isHuman = p.index === this.mySlotIndex;
+        }
+        this.game.humanPlayerIndex = this.mySlotIndex ?? 0;
+        this.game.renderer?.renderPlayers?.(this.game.players);
+      }
+      // 刷新本地玩家卡 controllerTag
       if (meta.started && this.game.players?.length) {
         for (const p of this.game.players) {
           try { this.game.renderer?._updateControllerTag?.(p); } catch (e) {}
@@ -308,12 +332,8 @@ export class RoomGuest {
     });
     this.bridge.onState((state) => this._applyState(state));
     this.bridge.onEvent(({ type, args }) => this._applyEvent(type, args));
-    // 发 join intent
-    this.bridge.sendIntent({
-      name: 'join',
-      token: this.token,
-      displayName: this.displayName,
-    });
+    // 备份兜底：如果 onPeerJoin 没在 5 秒内触发（trystero 协议异常），强制发一次 — 至少不卡死
+    setTimeout(sendJoin, 5000);
     return this;
   }
 
@@ -348,7 +368,7 @@ export class RoomGuest {
       this.game.turnCount = state.turnCount;
       this.game.renderer?.renderPlayers?.(this.game.players);
     }
-    // 已有：增量更新
+    // 已有：增量更新（每秒 state sync 时更新 hp / handCards / isHuman 等）
     state.players?.forEach((ps, i) => {
       const local = this.game.players[i];
       if (!local) return;
@@ -360,6 +380,8 @@ export class RoomGuest {
       local.judgeCards = ps.judgeCards || [];
       local.hasUsedSha = ps.hasUsedSha;
       local.drunken = ps.drunken;
+      // isHuman 是从"我自己"视角算 — mySlotIndex 一开始可能 null（meta 还没到），后面 meta 来时也得刷新
+      local.isHuman = ps.index === this.mySlotIndex;
     });
     this.game.gameState = state.gameState;
     this.game.currentPlayerIndex = state.currentPlayerIndex;

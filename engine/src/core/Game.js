@@ -2902,26 +2902,33 @@ export class Game {
   _mpRenderHostSlots() {
     if (!this.mpRoom || this.mpRoom.role !== 'host') return;
     const slots = this.mpRoom._buildSlots();
-    const html = slots.map(s => `
+    const html = slots.map(s => {
+      const me = (s.kind === 'host') ? '（你）' : '';
+      return `
       <div class="mp-slot">
         <span class="mp-slot-idx">#${s.index}</span>
         <span class="mp-slot-icon">${s.kind === 'host' ? '👑' : s.kind === 'guest' ? '🎮' : '🤖'}</span>
-        <span class="mp-slot-name">${this._escape(s.name)}</span>
+        <span class="mp-slot-name">${this._escape(s.name)}${me}</span>
         <span class="mp-slot-tag tag-${s.kind}">${s.kind === 'host' ? '房主' : s.kind === 'guest' ? '玩家' : 'AI'}</span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     document.getElementById('mp-slots').innerHTML = html;
   }
 
   _mpRenderGuestSlots() {
     if (!this.mpRoom || this.mpRoom.role !== 'guest') return;
     const slots = this.mpRoom.meta?.slots || [];
-    const html = slots.map(s => `
+    const mySlot = this.mpRoom.mySlotIndex;
+    const html = slots.map(s => {
+      const me = (s.index === mySlot) ? '（你）' : '';
+      return `
       <div class="mp-slot">
         <span class="mp-slot-idx">#${s.index}</span>
         <span class="mp-slot-icon">${s.kind === 'host' ? '👑' : s.kind === 'guest' ? '🎮' : '🤖'}</span>
-        <span class="mp-slot-name">${this._escape(s.name)}</span>
+        <span class="mp-slot-name">${this._escape(s.name)}${me}</span>
         <span class="mp-slot-tag tag-${s.kind}">${s.kind === 'host' ? '房主' : s.kind === 'guest' ? '玩家' : 'AI'}</span>
-      </div>`).join('');
+      </div>`;
+    }).join('');
     document.getElementById('mp-guest-slots').innerHTML = html;
   }
 
