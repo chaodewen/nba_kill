@@ -2389,12 +2389,21 @@ export class Game {
   // 快捷操作
   // 联机模式：guest 端把"我要做这个"转成 intent 上行给房主，房主权威端执行
   // 返回 true 表示已转发，调用方应直接 return（不要本地执行 logic）
+  // 守门：guest 的 "主动出牌"操作（quickPlay / quickDiscard / quickEndTurn / playHandCard 触发出牌）
+  //        只有自己回合才允许；pendingShanResponse 类（被投要响应）即使非自己回合也允许
   _forwardIntent(name, args) {
-    if (this.mpRoom?.role === 'guest') {
-      this.mpRoom.sendIntent(name, args);
-      return true;
+    if (this.mpRoom?.role !== 'guest') return false;
+    const mySlot = this.mpRoom.mySlotIndex;
+    const isMyTurn = (mySlot != null && this.currentPlayerIndex === mySlot);
+    // 主动操作必须当前回合是自己
+    const ACTIVE_INTENTS = new Set(['quickPlay', 'quickDiscard', 'quickEndTurn', 'useActiveSkill', 'selectTarget']);
+    if (ACTIVE_INTENTS.has(name) && !isMyTurn) {
+      this.renderer?.flashRejected?.(mySlot ?? 0, '不是你的回合');
+      return true; // swallow（不转发，但调用方 return 不本地执行）
     }
-    return false;
+    // playHandCard / skipShanResponse 等响应类 — 房主端会校验是否真有 pendingShanResponse 给该 peer
+    this.mpRoom.sendIntent(name, args);
+    return true;
   }
 
   playHandCard(playerIndex, cardId) {

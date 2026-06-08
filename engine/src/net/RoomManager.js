@@ -9,21 +9,42 @@ import { createHost, joinAsGuest, generateRoomId, generatePlayerToken,
 
 // 房主端不该转发给 guest 的 ui/fx 事件 — args 是 game/players 整体对象（循环引用 → 序列化失败 → null）
 // 这些事件 guest 已经通过每秒 state snapshot 拿到等价信息，重复 broadcast 反而出 bug
-// （typical bug：guest 收到 ui:updateUI(null) → renderer.updateUI(null) → game.players 报"undefined is not an object"）
+// 另外 modal/banner 类是 host 自己交互的，guest 不该跟着弹（不然两端弹一样的 modal 操作互串）
 const BROADCAST_SKIP = new Set([
-  'ui:updateUI',           // 整个 game 对象，循环引用
-  'ui:renderPlayers',      // players 数组，循环引用
-  'ui:updatePlayer',       // 单 player 对象，循环引用 — 用 state sync 替代
-  'ui:cacheElements',      // 一次性 init
-  'ui:showBuildTimestamp', // 一次性 init
-  'ui:highlightPlayer',    // state.currentPlayerIndex 已带
-  'ui:renderHandCards',    // _applyState 重渲染
-  'ui:renderEquipment',    // 同上
-  'ui:renderHP',           // 同上
-  'ui:renderStatusIcons',  // 同上
-  'ui:setPhase',           // 不影响渲染（只改 internal state）— 可选，先跳
+  // 循环引用类（args 含 game / players）
+  'ui:updateUI',
+  'ui:renderPlayers',
+  'ui:updatePlayer',
+  'ui:cacheElements',
+  'ui:showBuildTimestamp',
+  'ui:highlightPlayer',
+  'ui:renderHandCards',
+  'ui:renderEquipment',
+  'ui:renderHP',
+  'ui:renderStatusIcons',
+  'ui:setPhase',
   'ui:updateButtons',
   'ui:updateDistanceLabels',
+  // modal / banner / tooltip — host 自己的弹窗，不该出现在 guest 端
+  'ui:showCardModal', 'ui:closeModal',
+  'ui:showSkillModal',
+  'ui:showShanResponseBanner', 'ui:hideShanResponseBanner',
+  'ui:markShanCandidates', 'ui:clearShanCandidates',
+  'ui:showTargetBanner', 'ui:hideTargetBanner',
+  'ui:markTargetCandidates', 'ui:clearTargetCandidates',
+  'ui:showCardPickModal', 'ui:hideCardPickModal',
+  'ui:openSelfDiscardPick',
+  'ui:showConfirm', 'ui:confirmAction', 'ui:cancelConfirm',
+  'ui:showCardTooltip', 'ui:hideCardTooltip', 'ui:updateTooltipPosition',
+  'ui:showWinnerModal', 'ui:hideWinnerModal',
+  'ui:showRulesModal', 'ui:hideRulesModal',
+  'ui:showInfoModal', 'ui:hideInfoModal',
+  'ui:showRosterPage', 'ui:hideRosterPage',
+  'ui:showPauseOverlay', 'ui:hidePauseOverlay',
+  'ui:toggleSettings', 'ui:filterAllHands',
+  'ui:shouldShowGuide', 'ui:showGuide',
+  // 弹窗内交互方法
+  'ui:openSkillDiscardPick',
 ]);
 
 export class RoomHost {
@@ -140,21 +161,32 @@ export class RoomHost {
       this.onChange();
       return;
     }
-    // 开局后 intent：校验 peer 控制的 slot 跟 intent 的 playerIndex 匹配
+    // 开局后 intent：校验 peer 控制的 slot 是否有权发起这个 intent
     if (this.started) {
       const expectedSlot = peer.slotIndex;
       const fn = this.game[intent.name];
-      if (typeof fn === 'function') {
-        const firstArg = intent.args?.[0];
-        if (typeof firstArg === 'number' && firstArg !== expectedSlot) {
-          console.warn(`[host] reject intent: peer ${peerId} 试图操作非本人 slot (expected ${expectedSlot}, got ${firstArg})`);
+      if (typeof fn !== 'function') return;
+
+      // 主动出牌类 intent 必须 peer 自己的回合（防止 guest 在房主回合点出牌）
+      const ACTIVE_INTENTS = new Set(['quickPlay', 'quickDiscard', 'quickEndTurn', 'useActiveSkill', 'selectTarget']);
+      if (ACTIVE_INTENTS.has(intent.name)) {
+        if (this.game.currentPlayerIndex !== expectedSlot) {
+          console.warn(`[host] reject ${intent.name}: 当前回合是 #${this.game.currentPlayerIndex}, peer 是 #${expectedSlot}`);
           return;
         }
-        try {
-          fn.apply(this.game, intent.args || []);
-        } catch (e) {
-          console.warn(`[host] intent ${intent.name} error:`, e);
+      }
+      // playHandCard 第一个 arg 是 playerIndex — 必须等于 peer 自己 slot
+      if (intent.name === 'playHandCard') {
+        const firstArg = intent.args?.[0];
+        if (typeof firstArg === 'number' && firstArg !== expectedSlot) {
+          console.warn(`[host] reject playHandCard: peer 是 #${expectedSlot}, 试图代打 #${firstArg}`);
+          return;
         }
+      }
+      try {
+        fn.apply(this.game, intent.args || []);
+      } catch (e) {
+        console.warn(`[host] intent ${intent.name} error:`, e);
       }
     }
   }
@@ -323,6 +355,10 @@ export class RoomGuest {
         }
         this.game.humanPlayerIndex = this.mySlotIndex ?? 0;
         this.game.renderer?.renderPlayers?.(this.game.players);
+      }
+      // mySlotIndex 改变（包括第一次确定）→ 同步 humanPlayerIndex（防止 guest 误以为自己是房主 slot 0）
+      if (this.mySlotIndex != null) {
+        this.game.humanPlayerIndex = this.mySlotIndex;
       }
       // 刷新本地玩家卡 controllerTag
       if (meta.started && this.game.players?.length) {
