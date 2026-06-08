@@ -147,13 +147,14 @@ export class SoundFx {
   }
 
   // 浏览器策略：AudioContext 必须由用户手势触发后才能 resume；mp3 Audio() 同样需要手势 unlock
+  // iOS Safari 的关键技巧：用一个**共享 Audio 元素**切 src 而非每次 new Audio
+  // 这样只需 unlock 一次（用户手势内 play 一次），后续 setTimeout 内切 src + play 都能用
   unlock() {
     const ctx = this._ensureCtx();
     if (ctx && ctx.state === 'suspended' && !this._unlocked) {
       ctx.resume().catch(() => {});
       this._unlocked = true;
     }
-    // SpeechSynthesis 在某些浏览器上也需要用户手势激活：先 speak 一个空串「热身」
     if (this.synth && !this._speechWarmed) {
       try {
         const warm = new SpeechSynthesisUtterance('');
@@ -162,14 +163,17 @@ export class SoundFx {
         this._speechWarmed = true;
       } catch (e) {}
     }
-    // mp3 / Audio() 在 iOS Safari 必须由用户手势 unlock — 用极短无声 mp3 触发一次 play()
-    // 之后 setTimeout 内的 audio.play() 不会被静默
-    if (!this._audioWarmed) {
+    // 共享 Audio 元素 — iOS Safari unlock 必须用户手势内触发一次 play
+    if (!this._sharedAudio) {
       try {
-        const a = new Audio('data:audio/mp3;base64,SUQzAwAAAAAAFlRJVDIAAAAFAAAATEFNRQAAAAAAAAAAAAAAAAAA//uQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA');
-        a.volume = 0;
-        a.play().then(() => a.pause()).catch(() => {});
-        this._audioWarmed = true;
+        this._sharedAudio = new Audio();
+        // 极短无声 wav (44 bytes) — 直接 base64，不依赖外部资源；iOS 必须有合法音频数据才 unlock
+        // RIFF header + 1 sample silent PCM
+        this._sharedAudio.src = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+        this._sharedAudio.volume = 0;
+        const p = this._sharedAudio.play();
+        if (p && p.then) p.then(() => { this._audioWarmed = true; }).catch(() => {});
+        else this._audioWarmed = true;
       } catch (e) {}
     }
   }
@@ -218,7 +222,9 @@ export class SoundFx {
       const isEn = lang === 'en';
       u.lang = isEn ? 'en-US' : 'zh-CN';
       u.rate = isEn ? 1.05 : 0.92;
-      u.pitch = isEn ? 1.0 : (this.zhVoiceIsMale ? 0.95 : 0.5);
+      // pitch 推到极限低（0.1）让女声听起来尽量像男声 — 用户痛点："手机不能用男声"
+      // 浏览器实际对 pitch 范围解释不一，0.1 是合法值；过低浏览器会 clamp 到自己最低
+      u.pitch = isEn ? 1.0 : (this.zhVoiceIsMale ? 0.95 : 0.1);
       u.volume = 1.0;
       const v = isEn ? this.enVoice : this.zhVoice;
       if (v) u.voice = v;
@@ -228,19 +234,23 @@ export class SoundFx {
 
   _playMp3(url, fallbackText) {
     try {
-      let audio = this._audioCache.get(url);
+      // 关键：使用共享 Audio 元素切 src（iOS Safari unlock 后唯一可靠的播放方式）
+      // 之前为每个 url new Audio 在手机上每次都被 autoplay 政策 reject
+      let audio = this._sharedAudio;
       if (!audio) {
+        // 还没 unlock — 退路：尝试 new Audio（电脑能用，手机大概率失败 fallback SS）
         audio = new Audio(url);
         audio.preload = 'auto';
-        this._audioCache.set(url, audio);
+      } else {
+        audio.src = url;
+        audio.volume = 1;
       }
       audio.currentTime = 0;
       const playPromise = audio.play();
       if (playPromise && playPromise.catch) {
         playPromise.catch((err) => {
-          // mp3 播放失败（404 / autoplay 限制）→ fallback 到 SS
           if (!this._mp3FailLogged) {
-            console.warn(`[SoundFx] mp3 播放失败，fallback SS：${err?.name || err}（url=${url}）`);
+            console.warn(`[SoundFx] mp3 播放失败（${err?.name || err}）→ fallback SS`);
             this._mp3FailLogged = true;
           }
           if (fallbackText) this._speakSS(fallbackText, 'zh');

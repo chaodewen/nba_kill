@@ -159,16 +159,22 @@ export class Renderer {
 
   // 手机竖屏圆桌布局：人在左边圈上，对手分布上/下两排，右边空出留给牌堆
   // 顺时针顺序：human (左) → 上排 L→R → 右边折返 → 下排 R→L → 回到 human
-  static getMobileSeatLayout(N, seat) {
-    // bot 行的 total 强制对齐 top 行，让底排从最左开始按列排，跟上排前几列竖直对齐
-    const M = {
-      4: { 0: ['humanleft'], 1: ['top', 0, 2], 2: ['top', 1, 2], 3: ['bot', 0, 2] },
-      5: { 0: ['humanleft'], 1: ['top', 0, 2], 2: ['top', 1, 2], 3: ['bot', 1, 2], 4: ['bot', 0, 2] },
-      6: { 0: ['humanleft'], 1: ['top', 0, 3], 2: ['top', 1, 3], 3: ['top', 2, 3], 4: ['bot', 1, 3], 5: ['bot', 0, 3] },
-      7: { 0: ['humanleft'], 1: ['top', 0, 3], 2: ['top', 1, 3], 3: ['top', 2, 3], 4: ['bot', 2, 3], 5: ['bot', 1, 3], 6: ['bot', 0, 3] },
-      8: { 0: ['humanleft'], 1: ['top', 0, 4], 2: ['top', 1, 4], 3: ['top', 2, 4], 4: ['top', 3, 4], 5: ['bot', 2, 4], 6: ['bot', 1, 4], 7: ['bot', 0, 4] },
-    };
-    return (M[N] && M[N][seat]) || ['top', 0, 1];
+  // 手机座位布局 — 自己永远在左边（humanleft），其他人按相对位置（顺时针距离）分到 top/bot 行
+  // 例：8 人局自己 + 7 个对手 → top 行 4 个 / bot 行 3 个；4 人局自己 + 3 个对手 → top 2 / bot 1
+  // 这样不论自己是哪个 seat（host=0 / guest=任意），看到的布局都是「我在左、对手分上下两排」
+  static getMobileSeatLayout(N, seat, humanIndex = 0) {
+    if (seat === humanIndex) return ['humanleft'];
+    const rel = (seat - humanIndex + N) % N;  // 1..N-1，顺时针相对距离
+    const opponents = N - 1;
+    const topCount = Math.ceil(opponents / 2);   // 8人=4 / 7人=3 / 6人=3 / 5人=2 / 4人=2
+    const botCount = opponents - topCount;       // 8人=3 / 7人=3 / 6人=2 / 5人=2 / 4人=1
+    if (rel <= topCount) {
+      // top 行：col 0..topCount-1，按 rel 顺序
+      return ['top', rel - 1, topCount];
+    }
+    // bot 行：col 跟 top 同 total（topCount）让左对齐；col 倒序填（最远的 rel 在最左）
+    const botIdx = rel - topCount - 1; // 0..botCount-1
+    return ['bot', botCount - 1 - botIdx, topCount];
   }
 
   renderMobilePortrait(players, human, opponents) {
@@ -216,7 +222,9 @@ export class Renderer {
     oppArea.appendChild(deckSlot);
 
     const place = (player) => {
-      const layout = Renderer.getMobileSeatLayout(N, player.index);
+      // 自己永远在左：humanIndex 来自 game（host 是 0，guest 是 mySlotIndex）
+      const humanIndex = this.game?.humanPlayerIndex ?? 0;
+      const layout = Renderer.getMobileSeatLayout(N, player.index, humanIndex);
       let x, y;
       if (layout[0] === 'humanleft') {
         x = 19;
