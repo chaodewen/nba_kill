@@ -1972,12 +1972,18 @@ export class Game {
 
       case 'ally_draw_one': {
         const cnt = result.count || 1;
+        // 按规则"令一名其他角色"应该是 *任意* 其他活人；优先队友（ally），没队友才其他人
         const allies = this.players.filter(p => p !== player && p.isAlive && !isEnemy(player, p));
-        const recipient = allies[0] || this.players.find(p => p !== player && p.isAlive);
+        const others = this.players.filter(p => p !== player && p.isAlive);
+        const recipient = allies[0] || others[0];
         if (!recipient) return false;
         const drawn = this.deck.drawMultiple(cnt);
         recipient.drawCards(drawn);
         log(`令 ${recipient.character.name} 摸 ${cnt} 张牌`);
+        // 视觉反馈：让用户能看到技能触发，不是默默
+        this.renderer.flashCardPlay(player, result.name, '#fbbf24');
+        this.renderer.flashCardPlay(recipient, '+1 张', '#16a34a');
+        this.renderer.updatePlayer(player);
         this.renderer.updatePlayer(recipient);
         return true;
       }
