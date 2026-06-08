@@ -7,6 +7,25 @@
 import { createHost, joinAsGuest, generateRoomId, generatePlayerToken,
          serializeArgs, hydrateArgs, serializeGameState } from './NetworkBridge.js';
 
+// 房主端不该转发给 guest 的 ui/fx 事件 — args 是 game/players 整体对象（循环引用 → 序列化失败 → null）
+// 这些事件 guest 已经通过每秒 state snapshot 拿到等价信息，重复 broadcast 反而出 bug
+// （typical bug：guest 收到 ui:updateUI(null) → renderer.updateUI(null) → game.players 报"undefined is not an object"）
+const BROADCAST_SKIP = new Set([
+  'ui:updateUI',           // 整个 game 对象，循环引用
+  'ui:renderPlayers',      // players 数组，循环引用
+  'ui:updatePlayer',       // 单 player 对象，循环引用 — 用 state sync 替代
+  'ui:cacheElements',      // 一次性 init
+  'ui:showBuildTimestamp', // 一次性 init
+  'ui:highlightPlayer',    // state.currentPlayerIndex 已带
+  'ui:renderHandCards',    // _applyState 重渲染
+  'ui:renderEquipment',    // 同上
+  'ui:renderHP',           // 同上
+  'ui:renderStatusIcons',  // 同上
+  'ui:setPhase',           // 不影响渲染（只改 internal state）— 可选，先跳
+  'ui:updateButtons',
+  'ui:updateDistanceLabels',
+]);
+
 export class RoomHost {
   constructor(game, opts = {}) {
     this.game = game;
@@ -28,11 +47,15 @@ export class RoomHost {
     this.bridge.onPeerJoin((peerId) => this._onPeerJoin(peerId));
     this.bridge.onPeerLeave((peerId) => this._onPeerLeave(peerId));
     this.bridge.onPeerIntent((intent, peerId) => this._onIntent(intent, peerId));
-    // 房主自己 events.on('*') 订阅 — 把所有 ui:/fx: 转发给 guest
+    // 房主自己 events.on('*') 订阅 — 把所有 ui:/fx: 转发给 guest（除 BROADCAST_SKIP 外）
     this._unsub = this.game.events.on('*', ({ type, args }) => {
       if (!this.started) return;
-      // 序列化后广播
-      this.bridge.broadcastEvent({ type, args: serializeArgs(args) });
+      if (BROADCAST_SKIP.has(type)) return;
+      try {
+        this.bridge.broadcastEvent({ type, args: serializeArgs(args) });
+      } catch (e) {
+        console.warn(`[host] broadcast ${type} failed:`, e?.message || e);
+      }
     });
     return this;
   }
@@ -302,7 +325,15 @@ export class RoomGuest {
                  : namespace === 'fx' ? this.game.fx : null;
     if (!target || typeof target[method] !== 'function') return;
     const hydrated = hydrateArgs(args || [], this.game.players || []);
-    try { target[method](...hydrated); } catch (e) {}
+    // 防御：渲染 / 动效类方法第一个参数通常是 player 对象，如果序列化失败为 null 就跳过避免崩
+    if ((method.startsWith('flash') || method.startsWith('render') || method.startsWith('update')
+         || method.startsWith('highlight') || method.startsWith('mark') || method.startsWith('show'))
+        && hydrated[0] == null) {
+      return;
+    }
+    try { target[method](...hydrated); } catch (e) {
+      console.warn(`[guest] event ${type} apply error:`, e?.message || e);
+    }
   }
 
   _applyState(state) {
