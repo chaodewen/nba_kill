@@ -3010,7 +3010,8 @@
           <div class="mp-room-id-row">
             <span class="mp-label">房号</span>
             <span class="mp-room-id" id="mp-room-id">------</span>
-            <button class="mp-copy-btn" onclick="game.mpCopyRoomLink()">📋 复制邀请链接</button>
+            <button class="mp-copy-btn" onclick="game.mpCopyRoomLink()" title="复制带房号的邀请链接到剪贴板">📋 复制</button>
+            <button class="mp-copy-btn" onclick="game.mpShareRoomLink()" title="原生分享菜单（手机优先）">📤 分享</button>
           </div>
           <div class="mp-config">
             <label>总人数 <select id="mp-max-players" onchange="game.mpSetMaxPlayers(this.value)">

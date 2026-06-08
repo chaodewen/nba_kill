@@ -2794,6 +2794,21 @@ export class Game {
       document.getElementById('mp-guest-room-id').textContent = roomId;
       this._mpShowStep('guest');
       this.renderer.addLog(`🌐 已加入房间 ${roomId}（等待房主开始）`, 'system');
+      // 8s 内还没收到房主 meta → 提示房号可能错 / 房主未上线
+      this._mpJoinTimeout = setTimeout(() => {
+        if (this.mpRoom?.role === 'guest' && !this.mpRoom?.meta) {
+          this._mpFlashToast('⚠️ 8 秒内未收到房主响应。可能：房号错 / 房主未建房 / 信令网络阻断', 5000);
+        }
+      }, 8000);
+      // 收到 meta 时清掉 timeout
+      const originalOnChange = this.mpRoom.onChange;
+      this.mpRoom.onChange = () => {
+        if (this.mpRoom?.meta) {
+          clearTimeout(this._mpJoinTimeout);
+          this._mpJoinTimeout = null;
+        }
+        originalOnChange?.();
+      };
     } catch (e) {
       this.renderer.addLog(`❌ 加入失败：${e.message || e}`, 'system');
       console.error(e);
@@ -2836,12 +2851,52 @@ export class Game {
   mpCopyRoomLink() {
     if (!this.mpRoom) return;
     const url = `${location.origin}${location.pathname}?room=${this.mpRoom.roomId}`;
+    const text = `🏀 NBA Kill 联机房号 ${this.mpRoom.roomId}\n点链接直接进：${url}`;
     navigator.clipboard?.writeText?.(url).then(() => {
+      this._mpFlashToast('✓ 链接已复制，发给朋友吧');
       this.renderer.addLog(`已复制邀请链接：${url}`, 'system');
     }).catch(() => {
-      // fallback
       prompt('复制下面的链接发给朋友：', url);
     });
+  }
+
+  // 移动端 / 桌面 Safari 支持原生分享菜单：一键发到微信 / 飞书 / 邮件 / 短信等
+  // 不支持的浏览器（电脑 Chrome 等）退化到 mpCopyRoomLink
+  async mpShareRoomLink() {
+    if (!this.mpRoom) return;
+    const url = `${location.origin}${location.pathname}?room=${this.mpRoom.roomId}`;
+    const shareData = {
+      title: `NBA Kill 联机房 ${this.mpRoom.roomId}`,
+      text: `来 NBA Kill 一起玩，房号 ${this.mpRoom.roomId}`,
+      url,
+    };
+    try {
+      if (navigator.share && navigator.canShare?.(shareData)) {
+        await navigator.share(shareData);
+        this._mpFlashToast('已通过系统分享');
+        return;
+      }
+    } catch (e) {
+      // 用户取消分享 / 浏览器拒绝 — 静默 fallback
+      if (e?.name === 'AbortError') return;
+    }
+    // 不支持原生分享 — 走复制
+    this.mpCopyRoomLink();
+  }
+
+  // 屏幕中央短 toast — 用于复制 / 分享反馈
+  _mpFlashToast(msg, duration = 2000) {
+    const t = document.createElement('div');
+    t.textContent = msg;
+    Object.assign(t.style, {
+      position: 'fixed', top: '20vh', left: '50%', transform: 'translateX(-50%)',
+      background: 'rgba(46, 204, 113, 0.95)', color: '#fff',
+      padding: '10px 18px', borderRadius: '10px', fontSize: '14px', fontWeight: '600',
+      zIndex: '10000', boxShadow: '0 4px 18px rgba(0,0,0,0.5)',
+      transition: 'opacity 0.3s',
+    });
+    document.body.appendChild(t);
+    setTimeout(() => { t.style.opacity = '0'; setTimeout(() => t.remove(), 300); }, duration);
   }
 
   _mpRenderHostSlots() {
