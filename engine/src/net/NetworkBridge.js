@@ -16,13 +16,36 @@
 // （信令只走几 KB SDP/ICE，数据本身仍 P2P；trystero 0.25 起 torrent/mqtt/firebase 都被
 // 拆出独立包，只剩 nostr 是默认绑定 — 我们用 nostr）
 
-import { joinRoom, selfId } from 'trystero/nostr';
+import { joinRoom, selfId, defaultRelayUrls } from 'trystero/nostr';
 
 const APP_ID = 'nba-kill-v1';
 
+// 用更高的 redundancy（10 而不是默认 5）— 单 relay 不可达时多备份
+// 同时优先用大公开稳定 relay（damus.io / nos.lol / mostr.pub 这些日活高）
+const STABLE_RELAYS = [
+  'wss://relay.damus.io',
+  'wss://nos.lol',
+  'wss://relay.mostr.pub',
+  'wss://relay.nostr.place',
+  'wss://nostr.data.haus',
+  'wss://nostr.vulpem.com',
+  'wss://relay.angor.io',
+  'wss://schnorr.me',
+  'wss://yabu.me/v2',
+  'wss://relay.nostrdice.com',
+];
+const ROOM_CONFIG = {
+  appId: APP_ID,
+  relayConfig: {
+    urls: STABLE_RELAYS,
+    redundancy: 8,  // 同时连 8 个；任何 4 个能用就有信令
+  },
+};
+
 // ========== Host ==========
 export async function createHost(roomId) {
-  const room = joinRoom({ appId: APP_ID }, roomId);
+  console.log('[mp] createHost', roomId, 'selfId=', selfId);
+  const room = joinRoom(ROOM_CONFIG, roomId);
   // trystero 0.25+ makeAction 返回 { send, onMessage, ... } 对象（不再是 tuple）
   // onPeerJoin/onPeerLeave 也变成 property 赋值（不是函数调用）
   const eventAction = room.makeAction('event');
@@ -54,7 +77,8 @@ export async function createHost(roomId) {
 
 // ========== Guest ==========
 export async function joinAsGuest(roomId) {
-  const room = joinRoom({ appId: APP_ID }, roomId);
+  console.log('[mp] joinAsGuest', roomId, 'selfId=', selfId);
+  const room = joinRoom(ROOM_CONFIG, roomId);
   const eventAction = room.makeAction('event');
   const stateAction = room.makeAction('state');
   const intentAction = room.makeAction('intent');

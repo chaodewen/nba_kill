@@ -61,6 +61,7 @@ export class RoomHost {
   }
 
   _onPeerJoin(peerId) {
+    console.log('[mp host] peer joined:', peerId);
     // 等加入者发 join 元信息（含 token / 期望 slot）才正式 assign
     this.peers.set(peerId, { token: null, slotIndex: null, joined: false });
     this._broadcastMeta();
@@ -282,9 +283,10 @@ export class RoomGuest {
     this.bridge = await joinAsGuest(this.roomId);
     this._myPeerId = this.bridge.selfId;
     let hasJoined = false;
-    const sendJoin = () => {
+    const sendJoin = (reason) => {
       if (hasJoined) return;
       hasJoined = true;
+      console.log('[mp guest] sending join intent, reason=', reason);
       this.bridge.sendIntent({
         name: 'join',
         token: this.token,
@@ -293,8 +295,8 @@ export class RoomGuest {
     };
     // 关键：trystero P2P DataChannel 建立后再 send，避免 join 包在 ready 前丢失
     this.bridge.onPeerJoin((peerId) => {
-      // host 端 peer 出现 → channel 建立 → 立刻 join
-      sendJoin();
+      console.log('[mp guest] peer joined:', peerId);
+      sendJoin('onPeerJoin');
     });
     this.bridge.onPeerLeave((peerId) => {
       // 房主断线 — guest 直接退出比赛
@@ -333,7 +335,7 @@ export class RoomGuest {
     this.bridge.onState((state) => this._applyState(state));
     this.bridge.onEvent(({ type, args }) => this._applyEvent(type, args));
     // 备份兜底：如果 onPeerJoin 没在 5 秒内触发（trystero 协议异常），强制发一次 — 至少不卡死
-    setTimeout(sendJoin, 5000);
+    setTimeout(() => sendJoin('5s-fallback'), 5000);
     return this;
   }
 
