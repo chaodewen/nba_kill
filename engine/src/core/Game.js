@@ -1149,8 +1149,8 @@ export class Game {
             proceedShaResolution();
           },
         };
-        this.renderer.showShanResponseBanner(player.character.name, 1);
-        if (canRespond) this.renderer.markShanCandidates(target);
+        this._uiForPlayer(target, 'showShanResponseBanner', [player.character.name, 1]);
+        if (canRespond) this._uiForPlayer(target, 'markShanCandidates', [target]);
         // 如果有 bagua 但没 shan，自动按 bagua 走（不需要选）
         if (!canRespond && hasBaguaArmor) {
           // 1.2s 后自动出 bagua（让用户看到提示）
@@ -1267,8 +1267,8 @@ export class Game {
           onShan: () => playOneSha(true),  // playHandCard 已 splice 消耗
           onSkip: () => finishWithDamage(),
         };
-        this.renderer.showShanResponseBanner(`${other.character.name} 的【决斗】 - 出【投】或受伤`, 1);
-        this.renderer.markShanCandidates(current, 'sha');
+        this._uiForPlayer(current, 'showShanResponseBanner', [`${other.character.name} 的【决斗】 - 出【投】或受伤`, 1]);
+        this._uiForPlayer(current, 'markShanCandidates', [current, 'sha']);
         return;
       }
 
@@ -1606,11 +1606,8 @@ export class Game {
         onShan: (alreadyConsumed) => consumeAndContinue(),
         onSkip: () => takeDamage(),
       };
-      this.renderer.showShanResponseBanner(
-        `${source.character.name} 的【${aoeName}】`,
-        1
-      );
-      this.renderer.markShanCandidates(p, requiredKey);
+      this._uiForPlayer(p, 'showShanResponseBanner', [`${source.character.name} 的【${aoeName}】`, 1]);
+      this._uiForPlayer(p, 'markShanCandidates', [p, requiredKey]);
       return;
     }
 
@@ -2404,6 +2401,24 @@ export class Game {
     // playHandCard / skipShanResponse 等响应类 — 房主端会校验是否真有 pendingShanResponse 给该 peer
     this.mpRoom.sendIntent(name, args);
     return true;
+  }
+
+  // 联机模式：banner / 候选高亮等"针对特定玩家"的 UI，要发给那个玩家控制的 peer
+  // - targetPlayer 是 host 自己（_peerId 不存在 / null）→ 本地 renderer 弹
+  // - targetPlayer 是远程 guest（_peerId 存在）→ 通过 sendToPeer 单独发给那个 peer
+  // 这样避免 host 端弹给"target"的 banner 但 target 是 guest，host 自己看到错位的 banner
+  _uiForPlayer(player, method, args) {
+    const peerId = player?._peerId;
+    if (peerId && this.mpRoom?.role === 'host' && this.mpRoom.bridge?.sendToPeer) {
+      this.mpRoom.bridge.sendToPeer(peerId, 'event', { type: 'ui:' + method, args });
+    } else if (!peerId) {
+      // 本地 player（host 自己 slot 0 / 单机模式）
+      const fn = this.renderer?.[method];
+      if (typeof fn === 'function') {
+        try { fn.apply(this.renderer, args); } catch (e) {}
+      }
+    }
+    // peerId 存在但不在 host 模式（比如 guest 自己跑这段）→ noop
   }
 
   playHandCard(playerIndex, cardId) {
