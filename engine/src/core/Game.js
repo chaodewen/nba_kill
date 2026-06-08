@@ -2214,14 +2214,26 @@ export class Game {
     // 结束阶段技能由 SkillSystem 处理
 
     this.renderer.addLog('✅ 回合结束', 'system');
-    
+
     // 检查游戏结束
     const result = checkGameOver(this.players);
     if (result.over) {
       this.gameOver(result);
       return;
     }
-    
+    // 防死局：超过 100 回合还没分胜负 → 强制平局结束
+    // 实测 8 人内线协同减伤 + Battier 站位 + Howard 篮板 形成的死循环可以打到 138 回合不死人
+    if (this.turnCount >= 100) {
+      this.renderer.addLog('⚠️ 已超过 100 回合，自动判平局结束', 'system');
+      this.gameOver({
+        over: true,
+        winner: null,
+        winnerName: '平局',
+        reason: `打满 ${this.turnCount} 回合无人能终结对手`,
+      });
+      return;
+    }
+
     // 下一个玩家
     this.nextTurn();
   }
