@@ -14,6 +14,9 @@ export class RoomHost {
     this.roomId = opts.roomId || generateRoomId();
     this.bridge = null;
     this.peers = new Map(); // peerId -> { token, slotIndex, name, joined }
+    // 断线宽限：peerId leave 后 30s 内能凭 token 重连恢复 slot；超时才真正 AI 接管
+    this.disconnectedSlots = new Map(); // token -> { slotIndex, displayName, timer, leftAt }
+    this.disconnectGraceMs = opts.disconnectGraceMs ?? 30_000;
     this.maxPlayers = opts.maxPlayers || 4;
     this.aiCount = opts.aiCount || 0;
     this.started = false;
@@ -36,24 +39,38 @@ export class RoomHost {
 
   _onPeerJoin(peerId) {
     // 等加入者发 join 元信息（含 token / 期望 slot）才正式 assign
-    // 先发当前房间元信息让对方知道还在等
     this.peers.set(peerId, { token: null, slotIndex: null, joined: false });
     this._broadcastMeta();
     this.onChange();
   }
 
   _onPeerLeave(peerId) {
+    const peer = this.peers.get(peerId);
     this.peers.delete(peerId);
     this._broadcastMeta();
     this.onChange();
-    // 已开局：guest 断线 → 该 slot 转 AI 接管（v1 简化：直接把 player.isHuman = false）
-    if (this.started) {
-      const p = this.game.players?.find(pl => pl._peerId === peerId);
-      if (p) {
-        p.isHuman = false;
-        p._peerId = null;
-        this.game.renderer?.addLog?.(`📡 ${p.character.name} 断线 → AI 接管`, 'system');
-      }
+    if (!this.started) return;
+    // 已开局：先标记"断线中"，AI 接管该 slot 但保留重连窗口
+    const p = this.game.players?.find(pl => pl._peerId === peerId);
+    if (!p) return;
+    const wasHuman = p.isHuman;
+    p.isHuman = false;
+    p._peerId = null;
+    if (wasHuman && peer?.token) {
+      // 30s 内重连可恢复
+      this.disconnectedSlots.set(peer.token, {
+        slotIndex: p.index,
+        displayName: peer.displayName || p.character?.name,
+        leftAt: Date.now(),
+        timer: setTimeout(() => {
+          this.disconnectedSlots.delete(peer.token);
+          this.game.renderer?.addLog?.(`⏱️ ${p.character.name} 断线 30s 未重连，AI 永久接管`, 'system');
+          this._broadcastMeta();
+        }, this.disconnectGraceMs),
+      });
+      this.game.renderer?.addLog?.(`📡 ${p.character.name} 断线（AI 临时接管，30s 内可重连）`, 'system');
+    } else {
+      this.game.renderer?.addLog?.(`📡 ${p.character.name} 断线 → AI 接管`, 'system');
     }
   }
 
@@ -66,11 +83,34 @@ export class RoomHost {
       peer.token = intent.token;
       peer.displayName = intent.displayName || `玩家${this.peers.size}`;
       peer.joined = true;
-      // 分配 slot：第 1 个 join 的是 slot 1（slot 0 留给房主）
-      const used = new Set([0, ...[...this.peers.values()].filter(p => p.slotIndex != null).map(p => p.slotIndex)]);
+      // 重连：token 命中断线表 → 恢复原 slot
+      const reconnect = peer.token && this.disconnectedSlots.get(peer.token);
+      if (reconnect && this.started) {
+        clearTimeout(reconnect.timer);
+        this.disconnectedSlots.delete(peer.token);
+        peer.slotIndex = reconnect.slotIndex;
+        const p = this.game.players?.[reconnect.slotIndex];
+        if (p) {
+          p.isHuman = true;
+          p._peerId = peerId;
+          this.game.renderer?.addLog?.(`✅ ${p.character.name} 重连成功（${peer.displayName}）`, 'system');
+        }
+        this._broadcastMeta();
+        // 给重连者发完整 state snapshot
+        this.bridge.broadcastState(serializeGameState(this.game));
+        this.onChange();
+        return;
+      }
+      // 新加入：分配未占用 slot（slot 0 是房主自己）
+      const used = new Set([0, ...[...this.peers.values()].filter(p => p.slotIndex != null && p !== peer).map(p => p.slotIndex)]);
+      // 也排除断线表里仍然 hold 的 slot
+      for (const dc of this.disconnectedSlots.values()) used.add(dc.slotIndex);
       let slot = 1;
       while (used.has(slot) && slot < this.maxPlayers) slot++;
-      peer.slotIndex = slot;
+      peer.slotIndex = slot < this.maxPlayers ? slot : null;
+      if (peer.slotIndex == null) {
+        this.game.renderer?.addLog?.(`⚠️ ${peer.displayName} 想加入但无空位（${this.maxPlayers} 人已满）`, 'system');
+      }
       this._broadcastMeta();
       this.onChange();
       return;
@@ -78,10 +118,8 @@ export class RoomHost {
     // 开局后 intent：校验 peer 控制的 slot 跟 intent 的 playerIndex 匹配
     if (this.started) {
       const expectedSlot = peer.slotIndex;
-      // 简单分发：intent.name 调 game[name](...args)
       const fn = this.game[intent.name];
       if (typeof fn === 'function') {
-        // 校验：intent 第一个 arg 通常是 playerIndex，必须 == 自己 slot
         const firstArg = intent.args?.[0];
         if (typeof firstArg === 'number' && firstArg !== expectedSlot) {
           console.warn(`[host] reject intent: peer ${peerId} 试图操作非本人 slot (expected ${expectedSlot}, got ${firstArg})`);
@@ -179,7 +217,13 @@ export class RoomGuest {
     this.game = game;
     this.role = 'guest';
     this.roomId = opts.roomId;
-    this.token = generatePlayerToken();
+    // token 存 sessionStorage：浏览器刷新后还能凭它重连原 slot（30s 内）
+    // key 含 roomId，避免不同房间 token 互串
+    const tokenKey = `nba-kill-token-${this.roomId}`;
+    let storedToken = null;
+    try { storedToken = sessionStorage.getItem(tokenKey); } catch (e) {}
+    this.token = storedToken || generatePlayerToken();
+    try { sessionStorage.setItem(tokenKey, this.token); } catch (e) {}
     this.displayName = opts.displayName || `玩家${Math.floor(Math.random() * 1000)}`;
     this.bridge = null;
     this.meta = null;
@@ -189,19 +233,18 @@ export class RoomGuest {
 
   async start() {
     this.bridge = await joinAsGuest(this.roomId);
+    this._myPeerId = this.bridge.selfId;
     this.bridge.onMeta((meta) => {
       this.meta = meta;
-      // 找自己 slot：通过 token 匹配
+      // 找自己 slot：trystero selfId 跟 meta.slots[].peerId 比对
       const slot = (meta.slots || []).find(s => s.kind === 'guest' && s.peerId === this._myPeerId);
       this.mySlotIndex = slot?.index ?? null;
       // 开局了：guest 端 game 也要切 humanPlayerIndex + 关闭联机 modal 让用户看到游戏区
       if (meta.started && this.game.gameState !== 'playing') {
         this.game.playerCount = meta.maxPlayers;
         this.game.humanPlayerIndex = this.mySlotIndex ?? 0;
-        // 关闭联机 modal，否则 guest 一直停在等待页（实测 bug）
         document.getElementById('mp-modal')?.classList.remove('show');
         this.game.renderer?.addLog?.(`▶️ 房主开始了比赛（你是 ${slot?.name || '观战者'}）`, 'system');
-        // headless mode + state sync — guest 不自己 doStartGame；等 host 的 state snapshot
       }
       this.onChange();
     });

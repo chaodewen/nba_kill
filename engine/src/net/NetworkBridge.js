@@ -16,7 +16,7 @@
 // （信令只走几 KB SDP/ICE，数据本身仍 P2P；trystero 0.25 起 torrent/mqtt/firebase 都被
 // 拆出独立包，只剩 nostr 是默认绑定 — 我们用 nostr）
 
-import { joinRoom } from 'trystero/nostr';
+import { joinRoom, selfId } from 'trystero/nostr';
 
 const APP_ID = 'nba-kill-v1';
 
@@ -61,6 +61,7 @@ export async function joinAsGuest(roomId) {
   return {
     roomId,
     role: 'guest',
+    selfId,  // trystero 会赋每个端点一个 ID，guest 用它比对 meta.slots[].peerId 找自己
     room,
     onPeerJoin(fn) { room.onPeerJoin = fn; },
     onPeerLeave(fn) { room.onPeerLeave = fn; },
