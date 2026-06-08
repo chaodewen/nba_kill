@@ -88,12 +88,16 @@ export class SoundFx {
         this.mp3Manifest[k] = baseAbs + filename;
       }
       const count = Object.keys(this.mp3Manifest).length;
-      console.log(`[SoundFx] ✓ 杨毅风男声 mp3 已加载（${count} 句）— 优先播 mp3，未命中走系统 TTS`);
+      console.log(`[SoundFx] ✓ 杨毅风男声 mp3 已加载（${count} 句）— 仅播男声 mp3，未命中静默`);
       this._broadcastVoiceStatus({ ok: true, count, baseAbs });
+      // flush 在 manifest 加载前排队的 speak 调用
+      this._flushPendingSpeak();
     } catch (e) {
-      console.warn('[SoundFx] voice manifest fetch 异常，fallback 到 SpeechSynthesis 女声：', e?.message || e);
+      console.warn('[SoundFx] voice manifest fetch 失败 — 整局静音（不 fallback 女声）：', e?.message || e);
       this._broadcastVoiceStatus({ ok: false, message: e?.message || String(e) });
       this.mp3Manifest = null;
+      this._manifestLoadFailed = true;
+      this._pendingSpeak = null;
     }
   }
 
@@ -186,33 +190,43 @@ export class SoundFx {
     }
   }
 
-  // 喊牌名 / 解说语：杨毅风格 — 偏成熟男声节奏
-  // 优先级：(1) 命中 mp3 manifest → 播预生成男声 mp3；
-  //        (2) manifest 未加载时才 fallback SpeechSynthesis，避免新旧声线混播
-  // lang: 'zh' (默认 中文) | 'en' (英文 — NBA 球员名朗读)
+  // 喊牌名 / 解说语：杨毅风格 — 仅播预生成的 zh-CN-YunjianNeural 男声 mp3
+  // 用户明确要求：女声 SpeechSynthesis 完全删除，宁可静默也不混女声
+  // mp3 manifest 还在加载（fetch 中）时 → 排队，加载完 flush
+  // mp3 manifest 加载完命中失败 → 静默
   speak(text, lang = 'zh') {
     if (!this.enabled || !text) return;
+    if (lang !== 'zh') return; // 不再支持英文 voiceName SS（统一男声 mp3）
     const key = String(text).trim();
 
-    // (1) mp3 优先
-    if (lang === 'zh' && this.mp3Manifest && this.mp3Manifest[key]) {
-      this._playMp3(this.mp3Manifest[key], key);
+    // manifest 还在 fetch 中 — 排队等加载完
+    if (this.mp3Manifest === null && !this._manifestLoadFailed) {
+      this._pendingSpeak = this._pendingSpeak || [];
+      if (this._pendingSpeak.length < 30) this._pendingSpeak.push(key);
       return;
     }
-    // 命中失败：log 一次方便用户知道哪些 text 没生成 mp3
-    if (lang === 'zh' && this.mp3Manifest && !this._missLogged) {
-      this._missLogged = new Set();
-    }
-    if (lang === 'zh' && this.mp3Manifest && this._missLogged && !this._missLogged.has(key)) {
-      this._missLogged.add(key);
-      console.debug(`[SoundFx] mp3 未命中: "${key}" → skip SpeechSynthesis`);
-    }
-    if (lang === 'zh' && this.mp3Manifest) {
+    // manifest 已就绪：命中播男声 mp3，否则静默
+    if (this.mp3Manifest && this.mp3Manifest[key]) {
+      this._playMp3(this.mp3Manifest[key]);
       return;
     }
+    // 未命中：log 一次，静默（不再 fallback SS 女声）
+    if (this.mp3Manifest) {
+      this._missLogged = this._missLogged || new Set();
+      if (!this._missLogged.has(key)) {
+        this._missLogged.add(key);
+        console.debug(`[SoundFx] mp3 未命中静默："${key}"`);
+      }
+    }
+  }
 
-    // (2) Fallback: SpeechSynthesis（仅 manifest 未加载 / 英文球员名）
-    this._speakSS(key, lang);
+  _flushPendingSpeak() {
+    if (!this._pendingSpeak?.length || !this.mp3Manifest) return;
+    const queue = this._pendingSpeak;
+    this._pendingSpeak = null;
+    for (const key of queue) {
+      if (this.mp3Manifest[key]) this._playMp3(this.mp3Manifest[key]);
+    }
   }
 
   _speakSS(text, lang = 'zh') {
@@ -232,13 +246,12 @@ export class SoundFx {
     } catch (e) {}
   }
 
-  _playMp3(url, fallbackText) {
+  _playMp3(url) {
     try {
-      // 关键：使用共享 Audio 元素切 src（iOS Safari unlock 后唯一可靠的播放方式）
-      // 之前为每个 url new Audio 在手机上每次都被 autoplay 政策 reject
+      // iOS Safari 必须用共享 Audio 元素 + src 切换；new Audio 每次重新 unlock 失败
       let audio = this._sharedAudio;
       if (!audio) {
-        // 还没 unlock — 退路：尝试 new Audio（电脑能用，手机大概率失败 fallback SS）
+        // 还没 unlock — 退路（电脑能用，手机大概率失败 → 静默不 fallback SS）
         audio = new Audio(url);
         audio.preload = 'auto';
       } else {
@@ -250,14 +263,14 @@ export class SoundFx {
       if (playPromise && playPromise.catch) {
         playPromise.catch((err) => {
           if (!this._mp3FailLogged) {
-            console.warn(`[SoundFx] mp3 播放失败（${err?.name || err}）→ fallback SS`);
+            console.warn(`[SoundFx] mp3 播放失败（${err?.name || err}）— 静默，不 fallback SS`);
             this._mp3FailLogged = true;
           }
-          if (fallbackText) this._speakSS(fallbackText, 'zh');
+          // 不 fallback — 用户要求："女声直接删除"
         });
       }
     } catch (e) {
-      if (fallbackText) this._speakSS(fallbackText, 'zh');
+      // 同上：不 fallback
     }
   }
 

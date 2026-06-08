@@ -1336,9 +1336,10 @@ export class Game {
       const idx = Math.floor(Math.random() * target.handCards.length);
       const card = target.handCards.splice(idx, 1)[0];
       player.handCards.push(card);
-      // 飞牌动效：先在 target 那闪明牌（让玩家看清抢的是什么），再 flash 到 source 的牌堆区
+      // 飞牌动效：先在 target 那闪明牌（让玩家看清抢的是什么）
+      // 注意 — flashCardPlay 内部会通过 CARD_TTS_KEY 自动 fx.play('shunshou') 朗读"抢断！漂亮的单防！"
+      // 不再单独 fx.speak(`抢断！${card.name}！`) — 那种动态拼接 manifest 没生成，会 fallback 女声
       this.renderer.flashCardPlay(target, card.name, '#1abc9c');
-      this.fx?.speak?.(`抢断！${card.name}！`);
       this.renderer.updatePlayer(player);
       this.renderer.updatePlayer(target);
       this.renderer.addLog(`获得【${card.name}】`, 'play');

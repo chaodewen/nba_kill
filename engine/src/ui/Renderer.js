@@ -6,12 +6,19 @@ import { SUITS, CARD_TYPES, getCardPlaceholder } from '../config/cards';
 import { calculateDistance } from '../core/Logic';
 
 // 卡名 → SoundFx commentary key（让 flashCardPlay 走杨毅风格梗，而不是生硬念"投""盖"）
+// 关键：cards.js 里所有卡名都必须列出，否则 flashCardPlay 走 fx.speak(cardName) 兜底，
+// manifest 没生成动态文本会 fallback 到 SS 女声 — 用户痛点："女声更多"
 const CARD_TTS_KEY = {
-  '投': 'sha', '盖': 'shan', '佳得乐': 'tao',
+  // 基本
+  '投': 'sha', '盖': 'shan', '佳得乐': 'tao', '封闭针': 'tao',
+  // 战术
   '斗牛': 'juedou', '三分雨': 'wanjian', '全场紧逼': 'nanman',
-  '官方暂停': 'taoyuan', '战术板': 'wuzhong', '战术中断': 'wuxie', '手感来了': 'wugu',
-  '抢断': 'shunshou', '迫使失误': 'guoheshuang', '借刀杀人': 'jiedaosharen',
+  '官方暂停': 'taoyuan', '战术板': 'wuzhong', '裁判回看': 'wuxie',
+  '战术中断': 'wuxie', '手感来了': 'wugu',
+  '抢断': 'shunshou', '迫使失误': 'guoheshuang', '做球': 'jiedaosharen',
+  '借刀杀人': 'jiedaosharen',
   '犯规麻烦': 'lebusishu', '体能危机': 'bingliangcunduan', '伤病隐患': 'shandian',
+  // 装备 → 'equip' commentary
   '投篮训练机': 'equip', '罚球线': 'equip', '挡拆战术板': 'equip',
   '运动护腕': 'equip', '半场标志线': 'equip', '比赛用球': 'equip',
   '运动眼镜': 'equip', '护齿': 'equip',
