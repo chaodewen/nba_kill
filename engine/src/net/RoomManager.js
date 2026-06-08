@@ -96,8 +96,9 @@ export class RoomHost {
           this.game.renderer?.addLog?.(`✅ ${p.character.name} 重连成功（${peer.displayName}）`, 'system');
         }
         this._broadcastMeta();
-        // 给重连者发完整 state snapshot
-        this.bridge.broadcastState(serializeGameState(this.game));
+        // 给重连者单独发只含他自己手牌的 state（私有化）
+        const state = serializeGameState(this.game, reconnect.slotIndex);
+        this.bridge.sendToPeer(peerId, 'state', state);
         this.onChange();
         return;
       }
@@ -141,6 +142,7 @@ export class RoomHost {
       maxPlayers: this.maxPlayers,
       aiCount: this.aiCount,
       started: this.started,
+      hostPeerId: this.bridge?.selfId,   // 让 guest 能识别"房主断线"
       slots: this._buildSlots(),
     };
     this.bridge?.broadcastMeta(meta);
@@ -192,22 +194,33 @@ export class RoomHost {
       }
     }
     this._broadcastMeta();
-    // 给 guest 发完整 GameState snapshot 让他们渲染初始状态
-    this.bridge?.broadcastState(serializeGameState(this.game));
+    // 开局：给每个 guest 单独发只含自己手牌的 state（避免泄露其他人手牌）
+    this._broadcastStatePrivacy();
     this.onChange();
   }
 
-  // 当 game state 有变化（每个 ui 事件之后），把新 snapshot 广播
-  // 这里粗暴处理：每秒广播一次 + ui:updateUI 时也广播
+  // 给所有连接的 guest 发 state — 每人只看到自己 slot 的手牌（其他 slot 只暴露张数 placeholder）
+  _broadcastStatePrivacy() {
+    if (!this.bridge) return;
+    for (const [peerId, peer] of this.peers) {
+      if (peer.slotIndex == null) continue;
+      const state = serializeGameState(this.game, peer.slotIndex);
+      this.bridge.sendToPeer(peerId, 'state', state);
+    }
+  }
+
+  // 当 game state 有变化时按 slot 私有化广播给每个 guest（每秒一次定时刷新）
   beginStateSync() {
-    setInterval(() => {
+    if (this._stateSyncTimer) return;
+    this._stateSyncTimer = setInterval(() => {
       if (!this.started) return;
-      this.bridge?.broadcastState(serializeGameState(this.game));
+      this._broadcastStatePrivacy();
     }, 1000);
   }
 
   leave() {
     this._unsub?.();
+    if (this._stateSyncTimer) { clearInterval(this._stateSyncTimer); this._stateSyncTimer = null; }
     this.bridge?.leave();
   }
 }
@@ -234,6 +247,12 @@ export class RoomGuest {
   async start() {
     this.bridge = await joinAsGuest(this.roomId);
     this._myPeerId = this.bridge.selfId;
+    this.bridge.onPeerLeave((peerId) => {
+      // 房主断线 — guest 直接退出比赛（v2.1：先告诉用户，v2.2 再做接力）
+      if (this.meta?.hostPeerId && peerId === this.meta.hostPeerId) {
+        this._onHostDisconnected();
+      }
+    });
     this.bridge.onMeta((meta) => {
       this.meta = meta;
       // 找自己 slot：trystero selfId 跟 meta.slots[].peerId 比对
@@ -329,6 +348,28 @@ export class RoomGuest {
   // 用户操作 → 上行 intent
   sendIntent(name, args) {
     this.bridge?.sendIntent({ name, args });
+  }
+
+  // 房主断线：暂停 game state 更新 + 弹明确提示，让用户知道是房主问题不是自己
+  _onHostDisconnected() {
+    if (this._hostDown) return;
+    this._hostDown = true;
+    try {
+      const banner = document.createElement('div');
+      Object.assign(banner.style, {
+        position: 'fixed', top: '0', left: '0', right: '0',
+        background: 'linear-gradient(90deg, #e74c3c, #c0392b)',
+        color: '#fff', padding: '14px 16px', textAlign: 'center',
+        fontWeight: '700', fontSize: '14px', zIndex: '9999',
+        boxShadow: '0 4px 18px rgba(0,0,0,0.5)',
+      });
+      banner.innerHTML = '⚠️ 房主已断线 / 关闭浏览器，本局无法继续。<br>'
+        + '<span style="font-size:12px;font-weight:400;opacity:0.85;">'
+        + 'v2 计划做"房主接力"，目前请联系房主重开房间。</span>';
+      document.body.appendChild(banner);
+    } catch (e) {}
+    this.game.gameState = 'ended';
+    this.game.renderer?.addLog?.('⚠️ 房主断线，本局结束', 'system');
   }
 
   leave() {

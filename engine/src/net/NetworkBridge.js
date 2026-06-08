@@ -33,6 +33,7 @@ export async function createHost(roomId) {
   return {
     roomId,
     role: 'host',
+    selfId,  // 房主自己的 trystero ID — 写进 meta 让 guest 能识别"房主断线"
     room,
     onPeerJoin(fn) { room.onPeerJoin = fn; },
     onPeerLeave(fn) { room.onPeerLeave = fn; },
@@ -41,10 +42,11 @@ export async function createHost(roomId) {
     broadcastState(state) { stateAction.send(state); },
     broadcastMeta(meta) { metaAction.send(meta); },
     sendToPeer(peerId, kind, payload) {
+      // trystero 0.25 SendOptions: { target: peerId | peerId[] | null }
       const action = kind === 'event' ? eventAction
                    : kind === 'state' ? stateAction
                    : kind === 'meta' ? metaAction : null;
-      if (action) action.send(payload, { to: [peerId] });
+      if (action) action.send(payload, { target: peerId });
     },
     leave() { room.leave(); },
   };
@@ -129,7 +131,11 @@ export function hydrateArgs(args, players) {
 }
 
 // 把 Game 当前 state 序列化（player snapshot 用）
-export function serializeGameState(game) {
+// forSlotIndex: 给哪个 slot 看 — 该 slot 看到自己真实 handCards，其他 slot 只暴露 length
+//   undefined / null：debug 模式或房主自己 — 暴露全部手牌
+//   number：仅暴露 forSlotIndex 自己的手牌细节
+export function serializeGameState(game, forSlotIndex) {
+  const hideOthersHand = (forSlotIndex != null);
   return {
     gameState: game.gameState,
     currentPlayerIndex: game.currentPlayerIndex,
@@ -137,33 +143,44 @@ export function serializeGameState(game) {
     isPaused: game.isPaused,
     deckRemaining: game.deck?.getRemaining?.() ?? 0,
     discardCount: game.deck?.getDiscardCount?.() ?? 0,
-    players: (game.players || []).map(p => ({
-      index: p.index,
-      isAlive: p.isAlive,
-      isHuman: p.isHuman,
-      hp: p.hp,
-      maxHp: p.maxHp,
-      hasUsedSha: p.hasUsedSha,
-      drunken: p.drunken,
-      character: {
-        key: p.character.key,
-        name: p.character.name,
-        cnName: p.character.cnName,
-        nickname: p.character.nickname,
-        position: p.character.position,
-        kingdom: p.character.kingdom,
-      },
-      identity: p.identity,
-      handCards: (p.handCards || []).map(c => ({
-        id: c.id, key: c.key, name: c.name, suit: c.suit, value: c.value, color: c.color, type: c.type,
-      })),
-      equipment: {
-        weapon: p.equipment?.weapon ? { ...p.equipment.weapon } : null,
-        armor: p.equipment?.armor ? { ...p.equipment.armor } : null,
-        defenseHorse: p.equipment?.defenseHorse ? { ...p.equipment.defenseHorse } : null,
-        offenseHorse: p.equipment?.offenseHorse ? { ...p.equipment.offenseHorse } : null,
-      },
-      judgeCards: (p.judgeCards || []).map(j => ({ ...j })),
-    })),
+    forSlotIndex: forSlotIndex ?? null,
+    players: (game.players || []).map(p => {
+      const isSelf = !hideOthersHand || p.index === forSlotIndex;
+      const isDead = !p.isAlive;
+      return {
+        index: p.index,
+        isAlive: p.isAlive,
+        isHuman: p.isHuman,
+        hp: p.hp,
+        maxHp: p.maxHp,
+        hasUsedSha: p.hasUsedSha,
+        drunken: p.drunken,
+        character: {
+          key: p.character.key,
+          name: p.character.name,
+          cnName: p.character.cnName,
+          nickname: p.character.nickname,
+          position: p.character.position,
+          kingdom: p.character.kingdom,
+        },
+        identity: p.identity,
+        // 关键：仅自己 / 阵亡 / 房主 debug 视角看到 handCards 内容；其他人只看张数
+        handCards: (isSelf || isDead)
+          ? (p.handCards || []).map(c => ({
+              id: c.id, key: c.key, name: c.name, suit: c.suit, value: c.value, color: c.color, type: c.type,
+            }))
+          : new Array(p.handCards?.length || 0).fill(null).map((_, i) => ({
+              id: `hidden-${p.index}-${i}`,
+              key: '_hidden', name: '?', suit: '?', value: 0, color: '#888', type: 'hidden',
+            })),
+        equipment: {
+          weapon: p.equipment?.weapon ? { ...p.equipment.weapon } : null,
+          armor: p.equipment?.armor ? { ...p.equipment.armor } : null,
+          defenseHorse: p.equipment?.defenseHorse ? { ...p.equipment.defenseHorse } : null,
+          offenseHorse: p.equipment?.offenseHorse ? { ...p.equipment.offenseHorse } : null,
+        },
+        judgeCards: (p.judgeCards || []).map(j => ({ ...j })),
+      };
+    }),
   };
 }
