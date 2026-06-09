@@ -16,62 +16,139 @@
 // （信令只走几 KB SDP/ICE，数据本身仍 P2P；trystero 0.25 起 torrent/mqtt/firebase 都被
 // 拆出独立包，只剩 nostr 是默认绑定 — 我们用 nostr）
 
-import { joinRoom, selfId } from 'trystero/nostr';
+// 多策略信令：同时连 nostr / torrent / mqtt — 任何一个能用就 OK
+// 公司代理 / 防火墙可能拦截某种信令的特定域名（如 nostr 国外 wss），多备份提高连通率
+// 静态 import 避免 top-level await 在 webpack 下 crash
+import { joinRoom as joinNostr, selfId } from 'trystero/nostr';
+import { joinRoom as joinTorrent } from '@trystero-p2p/torrent';
+import { joinRoom as joinMqtt } from '@trystero-p2p/mqtt';
 
 const APP_ID = 'nba-kill-v1';
 const ROOM_CONFIG = { appId: APP_ID };
 
+// 同时启动多个策略；任何 room 收到事件都处理；发事件时 broadcast 到所有 room（去重靠 _seq）
+function joinMulti(roomId) {
+  const rooms = [];
+  const tryJoin = (name, fn) => {
+    try {
+      const room = fn(ROOM_CONFIG, roomId);
+      rooms.push({ name, room });
+    } catch (e) {
+      console.warn(`[mp] ${name} join failed:`, e?.message || e);
+    }
+  };
+  tryJoin('nostr', joinNostr);
+  tryJoin('torrent', joinTorrent);
+  tryJoin('mqtt', joinMqtt);
+  console.log(`[mp] joined ${rooms.length} 个信令策略：`, rooms.map(r => r.name).join(', '));
+  return rooms;
+}
+
+// 给所有 room 同名 makeAction 并合一：sender 给所有 room 各发一份，receiver 任一 room 收到都 fire
+// 同 _seq 去重（避免 host 收到 3 份同样的 join intent）
+function aggregatedAction(rooms, name) {
+  const actions = rooms.map(r => {
+    try { return r.room.makeAction(name); } catch (e) { return null; }
+  }).filter(Boolean);
+  const seen = new Set();
+  let onMessage = null;
+  for (const a of actions) {
+    a.onMessage = (data, ctx) => {
+      const seq = (data && typeof data === 'object' && '_seq' in data) ? data._seq : null;
+      if (seq != null) {
+        if (seen.has(seq)) return;
+        seen.add(seq);
+        if (seen.size > 500) seen.delete(seen.values().next().value);
+      }
+      onMessage?.(data, ctx);
+    };
+  }
+  let nextSeq = 0;
+  return {
+    send(data, opts) {
+      const payload = (data && typeof data === 'object')
+        ? { ...data, _seq: `${selfId}-${nextSeq++}` }
+        : data;
+      for (const a of actions) {
+        try { a.send(payload, opts); } catch (e) {}
+      }
+    },
+    set onMessage(fn) { onMessage = fn; },
+    get onMessage() { return onMessage; },
+  };
+}
+
+function aggregatePeerEvents(rooms) {
+  const seen = new Set();
+  let _onPeerJoin = null, _onPeerLeave = null;
+  for (const r of rooms) {
+    r.room.onPeerJoin = (peerId) => {
+      if (seen.has(peerId)) return;
+      seen.add(peerId);
+      _onPeerJoin?.(peerId);
+    };
+    r.room.onPeerLeave = (peerId) => {
+      seen.delete(peerId);
+      _onPeerLeave?.(peerId);
+    };
+  }
+  return {
+    onPeerJoin(fn) { _onPeerJoin = fn; },
+    onPeerLeave(fn) { _onPeerLeave = fn; },
+  };
+}
+
 // ========== Host ==========
 export async function createHost(roomId) {
   console.log('[mp] createHost', roomId, 'selfId=', selfId);
-  const room = joinRoom(ROOM_CONFIG, roomId);
-  const eventAction = room.makeAction('event');
-  const stateAction = room.makeAction('state');
-  const intentAction = room.makeAction('intent');
-  const metaAction = room.makeAction('meta');
+  const rooms = joinMulti(roomId);
+  if (rooms.length === 0) throw new Error('所有信令策略都不可用');
+
+  const eventAction = aggregatedAction(rooms, 'event');
+  const stateAction = aggregatedAction(rooms, 'state');
+  const intentAction = aggregatedAction(rooms, 'intent');
+  const metaAction = aggregatedAction(rooms, 'meta');
+  const peers = aggregatePeerEvents(rooms);
 
   return {
-    roomId,
-    role: 'host',
-    selfId,
-    room,
-    onPeerJoin(fn) { room.onPeerJoin = fn; },
-    onPeerLeave(fn) { room.onPeerLeave = fn; },
+    roomId, role: 'host', selfId, rooms,
+    onPeerJoin: peers.onPeerJoin,
+    onPeerLeave: peers.onPeerLeave,
     onPeerIntent(fn) { intentAction.onMessage = (data, ctx) => fn(data, ctx?.peerId); },
     broadcastEvent(payload) { eventAction.send(payload); },
     broadcastState(state) { stateAction.send(state); },
     broadcastMeta(meta) { metaAction.send(meta); },
     sendToPeer(peerId, kind, payload) {
-      const action = kind === 'event' ? eventAction
-                   : kind === 'state' ? stateAction
-                   : kind === 'meta' ? metaAction : null;
-      if (action) action.send(payload, { target: peerId });
+      const a = kind === 'event' ? eventAction
+              : kind === 'state' ? stateAction
+              : kind === 'meta' ? metaAction : null;
+      if (a) a.send(payload, { target: peerId });
     },
-    leave() { room.leave(); },
+    leave() { for (const r of rooms) try { r.room.leave(); } catch (e) {} },
   };
 }
 
 // ========== Guest ==========
 export async function joinAsGuest(roomId) {
   console.log('[mp] joinAsGuest', roomId, 'selfId=', selfId);
-  const room = joinRoom(ROOM_CONFIG, roomId);
-  const eventAction = room.makeAction('event');
-  const stateAction = room.makeAction('state');
-  const intentAction = room.makeAction('intent');
-  const metaAction = room.makeAction('meta');
+  const rooms = joinMulti(roomId);
+  if (rooms.length === 0) throw new Error('所有信令策略都不可用');
+
+  const eventAction = aggregatedAction(rooms, 'event');
+  const stateAction = aggregatedAction(rooms, 'state');
+  const intentAction = aggregatedAction(rooms, 'intent');
+  const metaAction = aggregatedAction(rooms, 'meta');
+  const peers = aggregatePeerEvents(rooms);
 
   return {
-    roomId,
-    role: 'guest',
-    selfId,
-    room,
-    onPeerJoin(fn) { room.onPeerJoin = fn; },
-    onPeerLeave(fn) { room.onPeerLeave = fn; },
+    roomId, role: 'guest', selfId, rooms,
+    onPeerJoin: peers.onPeerJoin,
+    onPeerLeave: peers.onPeerLeave,
     onEvent(fn) { eventAction.onMessage = (data) => fn(data); },
     onState(fn) { stateAction.onMessage = (data) => fn(data); },
     onMeta(fn) { metaAction.onMessage = (data) => fn(data); },
     sendIntent(intent) { intentAction.send(intent); },
-    leave() { room.leave(); },
+    leave() { for (const r of rooms) try { r.room.leave(); } catch (e) {} },
   };
 }
 
