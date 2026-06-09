@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 拿完整 git history — webpack.config 用 rev-list --count 算版本号
 
       - uses: actions/setup-node@v4
         with:
