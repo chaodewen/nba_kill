@@ -331,6 +331,20 @@ export class Game {
       return;
     }
 
+    // 清掉上一回合可能残留的 pending 响应 / banner / 候选高亮
+    // 否则用户卡在"上轮 banner 还在但点不了"状态（之前 bug：操作都做不了）
+    if (this.pendingShanResponse) {
+      const prevTarget = this.pendingShanResponse.target;
+      this.pendingShanResponse = null;
+      if (prevTarget) {
+        this._uiForPlayer(prevTarget, 'hideShanResponseBanner', []);
+        this._uiForPlayer(prevTarget, 'clearShanCandidates', []);
+      } else {
+        this.renderer?.hideShanResponseBanner?.();
+        this.renderer?.clearShanCandidates?.();
+      }
+    }
+
     this.turnCount++;
     player.hasUsedSha = false;
     player.drunken = false;

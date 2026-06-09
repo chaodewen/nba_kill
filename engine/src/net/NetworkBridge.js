@@ -166,8 +166,13 @@ export function serializeGameState(game, forSlotIndex) {
           name: p.character.name,
           cnName: p.character.cnName,
           nickname: p.character.nickname,
+          voiceName: p.character.voiceName,
           position: p.character.position,
           kingdom: p.character.kingdom,
+          nbaId: p.character.nbaId,         // NBA CDN 头像 ID — 缺这个 guest 端头像 fallback 字母
+          photoUrl: p.character.photoUrl,   // 自定义头像（如 Battier）
+          photoTransform: p.character.photoTransform,
+          skill: p.character.skill,         // 技能摘要文本（用于 player-skill UI）
         },
         identity: p.identity,
         // 关键：仅自己 / 阵亡 / 房主 debug 视角看到 handCards 内容；其他人只看张数
