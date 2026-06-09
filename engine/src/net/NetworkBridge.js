@@ -19,17 +19,12 @@
 import { joinRoom, selfId } from 'trystero/nostr';
 
 const APP_ID = 'nba-kill-v1';
-
-// 用 trystero/nostr 默认配置 — 它内置 ~46 个 nostr relay 随机选 5 个
-// 之前 v0.3.80 试图换成"稳定"白名单，反而更不稳；回到默认
 const ROOM_CONFIG = { appId: APP_ID };
 
 // ========== Host ==========
 export async function createHost(roomId) {
   console.log('[mp] createHost', roomId, 'selfId=', selfId);
   const room = joinRoom(ROOM_CONFIG, roomId);
-  // trystero 0.25+ makeAction 返回 { send, onMessage, ... } 对象（不再是 tuple）
-  // onPeerJoin/onPeerLeave 也变成 property 赋值（不是函数调用）
   const eventAction = room.makeAction('event');
   const stateAction = room.makeAction('state');
   const intentAction = room.makeAction('intent');
@@ -38,7 +33,7 @@ export async function createHost(roomId) {
   return {
     roomId,
     role: 'host',
-    selfId,  // 房主自己的 trystero ID — 写进 meta 让 guest 能识别"房主断线"
+    selfId,
     room,
     onPeerJoin(fn) { room.onPeerJoin = fn; },
     onPeerLeave(fn) { room.onPeerLeave = fn; },
@@ -47,7 +42,6 @@ export async function createHost(roomId) {
     broadcastState(state) { stateAction.send(state); },
     broadcastMeta(meta) { metaAction.send(meta); },
     sendToPeer(peerId, kind, payload) {
-      // trystero 0.25 SendOptions: { target: peerId | peerId[] | null }
       const action = kind === 'event' ? eventAction
                    : kind === 'state' ? stateAction
                    : kind === 'meta' ? metaAction : null;
@@ -69,7 +63,7 @@ export async function joinAsGuest(roomId) {
   return {
     roomId,
     role: 'guest',
-    selfId,  // trystero 会赋每个端点一个 ID，guest 用它比对 meta.slots[].peerId 找自己
+    selfId,
     room,
     onPeerJoin(fn) { room.onPeerJoin = fn; },
     onPeerLeave(fn) { room.onPeerLeave = fn; },

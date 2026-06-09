@@ -25,6 +25,8 @@
     "webpack-dev-server": "^4.15.1"
   },
   "dependencies": {
+    "@trystero-p2p/mqtt": "^0.25.1",
+    "@trystero-p2p/torrent": "^0.25.1",
     "trystero": "^0.25.1"
   }
 }
