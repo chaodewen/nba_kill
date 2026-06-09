@@ -314,10 +314,11 @@ export class RoomGuest {
   async start() {
     this.bridge = await joinAsGuest(this.roomId);
     this._myPeerId = this.bridge.selfId;
-    let hasJoined = false;
+    // join intent 可能因为 trystero P2P channel 还没 ready 而丢失 → 不再"只发一次"
+    // 而是重试：onPeerJoin 触发立刻发，之后每 4s 重发，收到 host 给我分配 slot 后停
+    let joinAcked = false;
     const sendJoin = (reason) => {
-      if (hasJoined) return;
-      hasJoined = true;
+      if (joinAcked) return;
       console.log('[mp guest] sending join intent, reason=', reason);
       this.bridge.sendIntent({
         name: 'join',
@@ -325,11 +326,24 @@ export class RoomGuest {
         displayName: this.displayName,
       });
     };
-    // 关键：trystero P2P DataChannel 建立后再 send，避免 join 包在 ready 前丢失
+    // 关键：trystero P2P DataChannel 建立后再 send（首发）
     this.bridge.onPeerJoin((peerId) => {
       console.log('[mp guest] peer joined:', peerId);
       sendJoin('onPeerJoin');
     });
+    // 兜底：3s 后开始尝试发（即使 onPeerJoin 还没 fire）
+    setTimeout(() => sendJoin('3s-initial'), 3000);
+    // 重试：每 4s 重发，直到收到 host 分配的 slot
+    this._joinRetryTimer = setInterval(() => {
+      if (joinAcked) {
+        clearInterval(this._joinRetryTimer);
+        this._joinRetryTimer = null;
+        return;
+      }
+      sendJoin('retry');
+    }, 4000);
+    // 暴露 joinAcked setter 让 onMeta 拿到自己 slot 时停止重试
+    this._setJoinAcked = () => { joinAcked = true; };
     this.bridge.onPeerLeave((peerId) => {
       // 房主断线 — guest 直接退出比赛
       if (this.meta?.hostPeerId && peerId === this.meta.hostPeerId) {
@@ -341,6 +355,10 @@ export class RoomGuest {
       const slot = (meta.slots || []).find(s => s.kind === 'guest' && s.peerId === this._myPeerId);
       const prevSlot = this.mySlotIndex;
       this.mySlotIndex = slot?.index ?? null;
+      // host 已认到我（slot 分配成功）→ 停止 join intent 重试
+      if (this.mySlotIndex != null && this._setJoinAcked) {
+        this._setJoinAcked();
+      }
       if (meta.started && this.game.gameState !== 'playing') {
         this.game.playerCount = meta.maxPlayers;
         this.game.humanPlayerIndex = this.mySlotIndex ?? 0;
@@ -480,6 +498,7 @@ export class RoomGuest {
   }
 
   leave() {
+    if (this._joinRetryTimer) { clearInterval(this._joinRetryTimer); this._joinRetryTimer = null; }
     this.bridge?.leave();
   }
 }

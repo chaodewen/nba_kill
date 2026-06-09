@@ -2838,18 +2838,26 @@ export class Game {
       document.getElementById('mp-guest-room-id').textContent = roomId;
       this._mpShowStep('guest');
       this.renderer.addLog(`🌐 已加入房间 ${roomId}（等待房主开始）`, 'system');
-      // 8s 内还没收到房主 meta → 提示房号可能错 / 房主未上线
+      // 15s 内还没收到房主 meta → 友好提示（不会放弃，client 端 join intent 会持续每 4s 重试）
       this._mpJoinTimeout = setTimeout(() => {
         if (this.mpRoom?.role === 'guest' && !this.mpRoom?.meta) {
-          this._mpFlashToast('⚠️ 8 秒内未收到房主响应。可能：房号错 / 房主未建房 / 信令网络阻断', 5000);
+          this._mpFlashToast('⏳ 信令较慢，仍在重试连接房主...\n如果你确认房号没错，请稍等或换网络', 6000);
         }
-      }, 8000);
+      }, 15000);
+      // 30s 还没通 → 升级警告
+      this._mpJoinHardTimeout = setTimeout(() => {
+        if (this.mpRoom?.role === 'guest' && !this.mpRoom?.meta) {
+          this._mpFlashToast('⚠️ 30 秒未连上房主。多半是 Nostr 公网信令阻断 — 试试 VPN / 换网络 / 让房主退掉重建', 8000);
+        }
+      }, 30000);
       // 收到 meta 时清掉 timeout
       const originalOnChange = this.mpRoom.onChange;
       this.mpRoom.onChange = () => {
         if (this.mpRoom?.meta) {
           clearTimeout(this._mpJoinTimeout);
+          clearTimeout(this._mpJoinHardTimeout);
           this._mpJoinTimeout = null;
+          this._mpJoinHardTimeout = null;
         }
         originalOnChange?.();
       };
