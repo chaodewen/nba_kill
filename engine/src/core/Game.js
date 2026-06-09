@@ -10,6 +10,7 @@ import { Renderer } from '../ui/Renderer';
 import { SoundFx } from '../ui/SoundFx';
 import { EventBus, ActionQueue, wrapWithEvents, makeNoopProxy } from './EventBus';
 import { RoomHost, RoomGuest } from '../net/RoomManager';
+import { serializeArgs } from '../net/NetworkBridge';
 import {
   calculateDistance, canAttack, getShaDamage, getRequiredShanCount,
   checkGameOver, getAlivePlayers, getNextAlivePlayer,
@@ -2424,7 +2425,10 @@ export class Game {
   _uiForPlayer(player, method, args) {
     const peerId = player?._peerId;
     if (peerId && this.mpRoom?.role === 'host' && this.mpRoom.bridge?.sendToPeer) {
-      this.mpRoom.bridge.sendToPeer(peerId, 'event', { type: 'ui:' + method, args });
+      // 关键：args 含 player ref（含循环引用 _peerId / .game / .element）必须序列化
+      // 否则 trystero send 内部 structuredClone 抛错 → guest 永远收不到 banner
+      const safeArgs = serializeArgs(args || []);
+      this.mpRoom.bridge.sendToPeer(peerId, 'event', { type: 'ui:' + method, args: safeArgs });
     } else if (!peerId) {
       // 本地 player（host 自己 slot 0 / 单机模式）
       const fn = this.renderer?.[method];

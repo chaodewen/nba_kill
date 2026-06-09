@@ -425,8 +425,9 @@ export class RoomGuest {
       this.game.renderer?.renderPlayers?.(this.game.players);
     }
     // 已有：增量更新（每秒 state sync 时更新 hp / handCards / isHuman 等）
-    state.players?.forEach((ps, i) => {
-      const local = this.game.players[i];
+    // 用 ps.index 索引 game.players[ps.index]（不是 forEach 的 i）— 防止数组顺序错乱时串人
+    state.players?.forEach((ps) => {
+      const local = this.game.players[ps.index];
       if (!local) return;
       local.hp = ps.hp;
       local.maxHp = ps.maxHp;
